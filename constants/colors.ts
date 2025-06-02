@@ -133,3 +133,6 @@ export const BRAND_COLOR = Colors.brand.primary;
 export const WHITE = Colors.neutral.white;
 export const BLACK = Colors.neutral.black;
 export const GRAY = Colors.neutral;
+
+// 디폴트 export 추가
+export default Colors;
