@@ -47,7 +47,7 @@ export const CommonStyles = StyleSheet.create({
   // 폼
   formContainer: {
     justifyContent: 'flex-start',
-    gap: 16,
+    // gap: 8,
     paddingHorizontal: 12,
     marginTop: 20,
   },
