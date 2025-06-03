@@ -1,22 +1,23 @@
-import { BRAND_COLOR, Colors, WHITE } from '@/constants/colors';
+import { BRAND_COLOR, WHITE } from '@/constants/Colors';
+import { router } from 'expo-router';
 import React from 'react';
 import {
-    Dimensions,
-    Image,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 export default function StartScreen() {
   const handleLogin = () => {
-    // TODO: 로그인 화면으로 이동
-    console.log('로그인 버튼 클릭');
+    // 로그인 화면으로 이동
+    router.push('/login');
   };
 
   const handleSignUp = () => {
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
     color: WHITE,
   },
   
-  // 이미지 스타일
+  // 이미지 스타일 (회색 원 제거)
   imageContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -107,20 +108,8 @@ const styles = StyleSheet.create({
   imageWrapper: {
     width: width * 0.5,
     height: width * 0.5,
-    backgroundColor: Colors.neutral.gray20,
-    borderRadius: width * 0.25,
-    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    // 그림자 효과
-    shadowColor: Colors.neutral.black,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 10,
   },
   reflectorImage: {
     width: '80%',
