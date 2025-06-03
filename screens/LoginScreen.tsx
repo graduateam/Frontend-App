@@ -25,7 +25,8 @@ export default function LoginScreen() {
     }
     
     console.log('로그인 시도:', { id, password });
-    Alert.alert('알림', '로그인 기능은 준비 중입니다.');
+    // Alert.alert('알림', '로그인 기능은 준비 중입니다.');
+    router.replace('/main');
   };
 
   const handleBack = () => {
