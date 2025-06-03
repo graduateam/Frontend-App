@@ -1,7 +1,9 @@
 import { BRAND_COLOR, Colors } from '@/constants/Colors';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Alert,
+    Image,
     SafeAreaView,
     StatusBar,
     StyleSheet,
@@ -11,7 +13,7 @@ import {
     View,
 } from 'react-native';
 
-export default function LoginScreen() {  // ← StartScreen이 아닌 LoginScreen
+export default function LoginScreen() {
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
 
@@ -26,14 +28,33 @@ export default function LoginScreen() {  // ← StartScreen이 아닌 LoginScree
     Alert.alert('알림', '로그인 기능은 준비 중입니다.');
   };
 
+  const handleBack = () => {
+    router.back(); // 이전 화면으로 돌아가기 (스택에서 현재 화면 제거)
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor={Colors.whiteGradient.w5} barStyle="dark-content" />
       
       <View style={styles.content}>
-        {/* 타이틀 */}
-        <View style={styles.titleContainer}>
+        {/* 상단 헤더 (뒤로가기 버튼 + 타이틀) */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBack}
+            activeOpacity={0.8}
+          >
+            <Image
+              source={require('@/assets/images/icon_arrow-left.png')}
+              style={styles.backIcon}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+          
           <Text style={styles.title}>로그인</Text>
+          
+          {/* 오른쪽 공간 균형 맞추기 */}
+          <View style={styles.placeholder} />
         </View>
 
         {/* 입력 폼 */}
@@ -83,20 +104,36 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 40,
-    justifyContent: 'space-between',
   },
   
-  // 타이틀
-  titleContainer: {
+  // 헤더 (뒤로가기 + 타이틀)
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 40,
+    paddingTop: 20,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backIcon: {
+    width: 24,
+    height: 24,
+    tintColor: Colors.neutral.black,
   },
   title: {
     fontSize: 24,
     fontFamily: 'Pretendard-Bold',
     color: Colors.neutral.black,
+  },
+  placeholder: {
+    width: 40, // backButton과 같은 크기로 균형 맞추기
   },
   
   // 폼
