@@ -21,8 +21,8 @@ export default function StartScreen() {
   };
 
   const handleSignUp = () => {
-    // TODO: 회원가입 화면으로 이동
-    console.log('회원가입 버튼 클릭');
+    // 회원가입 화면으로 이동
+    router.push('/register');
   };
 
   return (
