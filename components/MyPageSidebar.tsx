@@ -1,9 +1,10 @@
 import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   Dimensions,
+  Easing,
   Image,
   Modal,
   StatusBar,
@@ -25,19 +26,24 @@ interface MyPageSidebarProps {
 export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) {
   const slideAnim = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [modalVisible, setModalVisible] = useState(visible);
 
   useEffect(() => {
     if (visible) {
+      // Modal을 먼저 보이게 한 후 애니메이션 시작
+      setModalVisible(true);
       // 사이드바 열기 애니메이션
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: 0,
           duration: 300,
+          easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 300,
+          easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
       ]).start();
@@ -47,14 +53,19 @@ export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) 
         Animated.timing(slideAnim, {
           toValue: SIDEBAR_WIDTH,
           duration: 300,
+          easing: Easing.in(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
           toValue: 0,
           duration: 300,
+          easing: Easing.in(Easing.ease),
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        // 애니메이션이 완료된 후 Modal을 숨김
+        setModalVisible(false);
+      });
     }
   }, [visible, slideAnim, fadeAnim]);
 
@@ -97,11 +108,11 @@ export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) 
   return (
     <Modal
       transparent
-      visible={visible}
+      visible={modalVisible}
       animationType="none"
       onRequestClose={onClose}
     >
-      <StatusBar backgroundColor={visible ? 'rgba(0,0,0,0.5)' : BRAND_COLOR} />
+      <StatusBar backgroundColor={modalVisible && visible ? 'rgba(0,0,0,0.5)' : BRAND_COLOR} />
       
       {/* 배경 오버레이 */}
       <TouchableWithoutFeedback onPress={onClose}>
