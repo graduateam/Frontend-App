@@ -1,4 +1,5 @@
 import MyPageSidebar from '@/components/MyPageSidebar';
+import SettingsSidebar from '@/components/SettingsSidebar';
 import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
 import React, { useState } from 'react';
 import {
@@ -16,6 +17,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function MainScreen() {
   const [isMyPageVisible, setIsMyPageVisible] = useState(false);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
 
   const handleMyPage = () => {
     console.log('마이페이지 클릭');
@@ -29,7 +31,7 @@ export default function MainScreen() {
 
   const handleSettings = () => {
     console.log('환경설정 클릭');
-    // TODO: 환경설정으로 이동
+    setIsSettingsVisible(true);
   };
 
   return (
@@ -102,6 +104,12 @@ export default function MainScreen() {
       <MyPageSidebar
         visible={isMyPageVisible}
         onClose={() => setIsMyPageVisible(false)}
+      />
+
+      {/* 환경설정 사이드바 */}
+      <SettingsSidebar
+        visible={isSettingsVisible}
+        onClose={() => setIsSettingsVisible(false)}
       />
     </SafeAreaView>
   );

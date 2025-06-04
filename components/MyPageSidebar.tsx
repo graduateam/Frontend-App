@@ -1,22 +1,15 @@
-import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
-import React, { useEffect, useRef, useState } from 'react';
+import { Colors, WHITE } from '@/constants/Colors';
+import React from 'react';
 import {
   Alert,
-  Animated,
   Dimensions,
-  Easing,
   Image,
-  Modal,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
-
-const { width, height } = Dimensions.get('window');
-const SIDEBAR_WIDTH = width * 0.60; // 화면 너비의 60%
+import BaseSidebar from './BaseSidebar';
 
 interface MyPageSidebarProps {
   visible: boolean;
@@ -24,60 +17,6 @@ interface MyPageSidebarProps {
 }
 
 export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) {
-  // 초기값을 화면 밖으로 더 멀리 설정
-  const slideAnim = useRef(new Animated.Value(SIDEBAR_WIDTH + 100)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [modalVisible, setModalVisible] = useState(false);
-
-  useEffect(() => {
-    if (visible) {
-      // 애니메이션 값을 먼저 초기화 (화면 밖으로 더 멀리)
-      slideAnim.setValue(SIDEBAR_WIDTH + 100);
-      fadeAnim.setValue(0);
-      
-      // Modal을 먼저 보이게 한 후 애니메이션 시작
-      setModalVisible(true);
-      
-      // 짧은 지연 후 애니메이션 실행
-      setTimeout(() => {
-        // 사이드바 열기 애니메이션
-        Animated.parallel([
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 300,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 300,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }, 50);
-    } else {
-      // 사이드바 닫기 애니메이션
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: SIDEBAR_WIDTH + 100,
-          duration: 300,
-          easing: Easing.in(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 300,
-          easing: Easing.in(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        // 애니메이션이 완료된 후 Modal을 숨김
-        setModalVisible(false);
-      });
-    }
-  }, [visible, slideAnim, fadeAnim]);
-
   const handleLogout = () => {
     Alert.alert(
       '로그아웃',
@@ -115,165 +54,61 @@ export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) 
   };
 
   return (
-    <Modal
-      transparent
-      visible={modalVisible}
-      animationType="none"
-      onRequestClose={onClose}
-      presentationStyle="overFullScreen"
-      statusBarTranslucent
+    <BaseSidebar
+      visible={visible}
+      onClose={onClose}
+      title="마이페이지"
+      direction="right"
+      sidebarWidth={Dimensions.get('window').width * 0.60}
     >
-      <View style={{ flex: 1, overflow: 'hidden' }}>
-        <StatusBar backgroundColor={modalVisible && visible ? 'rgba(0,0,0,0.5)' : BRAND_COLOR} />
-        
-        {/* 배경 오버레이 */}
-        <TouchableWithoutFeedback onPress={onClose}>
-          <Animated.View 
-            style={[
-              styles.overlay,
-              {
-                opacity: fadeAnim,
-              },
-            ]}
-            pointerEvents={visible ? 'auto' : 'none'}
-          />
-        </TouchableWithoutFeedback>
-
-        {/* 사이드바 콘텐츠 */}
-        <Animated.View
-          style={[
-            styles.sidebar,
-            {
-              transform: [{ translateX: slideAnim }],
-            },
-          ]}
-        >
-        {/* 헤더 - 마이페이지 타이틀만 포함 */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={onClose}
-            activeOpacity={0.8}
-          >
-            <Image
-              source={require('@/assets/images/icon_arrow-right.png')}
-              style={styles.closeIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-          
-          <Text style={styles.title}>마이페이지</Text>
-        </View>
-
-        {/* 본문 영역 */}
-        <View style={styles.body}>
-          {/* 인사말 */}
-          <View style={styles.greetingContainer}>
-            <Text style={styles.greeting}>반가워요 박덕철님,</Text>
-            <Text style={styles.greetingSub}>오늘도 안전운전~ ♪</Text>
-          </View>
-
-          {/* 버튼 목록 */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.menuButton, styles.logoutButton]}
-              onPress={handleLogout}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.menuButtonText}>로그아웃</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.menuButton, styles.passwordButton]}
-              onPress={handlePasswordChange}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.menuButtonText}>비밀번호 변경</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.menuButton, styles.deleteButton]}
-              onPress={handleDeleteAccount}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.menuButtonText}>회원탈퇴</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* 하단 이미지 - tintColor 제거 */}
-          <View style={styles.bottomImageContainer}>
-            <View style={styles.bottomImageWrapper}>
-              <Image
-                source={require('@/assets/images/image_road_reflector.png')}
-                style={styles.bottomImage}
-                resizeMode="contain"
-              />
-            </View>
-          </View>
-        </View>
-              </Animated.View>
+      {/* 인사말 */}
+      <View style={styles.greetingContainer}>
+        <Text style={styles.greeting}>반가워요 박덕철님,</Text>
+        <Text style={styles.greetingSub}>오늘도 안전운전~ ♪</Text>
       </View>
-    </Modal>
+
+      {/* 버튼 목록 */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.menuButton, styles.logoutButton]}
+          onPress={handleLogout}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.menuButtonText}>로그아웃</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.menuButton, styles.passwordButton]}
+          onPress={handlePasswordChange}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.menuButtonText}>비밀번호 변경</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.menuButton, styles.deleteButton]}
+          onPress={handleDeleteAccount}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.menuButtonText}>회원탈퇴</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 하단 이미지 */}
+      <View style={styles.bottomImageContainer}>
+        <View style={styles.bottomImageWrapper}>
+          <Image
+            source={require('@/assets/images/image_road_reflector.png')}
+            style={styles.bottomImage}
+            resizeMode="contain"
+          />
+        </View>
+      </View>
+    </BaseSidebar>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  sidebar: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: SIDEBAR_WIDTH,
-    backgroundColor: Colors.whiteGradient.w5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: -2,
-      height: 0,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    overflow: 'hidden',
-  },
-  
-  // 헤더 - 배경색 구분
-  header: {
-    backgroundColor: Colors.whiteGradient.w4, // 더 진한 베이지색
-    paddingHorizontal: 24,
-    paddingTop: 60, // 상태바 높이 고려
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.whiteGradient.w3,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    marginLeft: -8, // 시각적 정렬
-  },
-  closeIcon: {
-    width: 24,
-    height: 24,
-    tintColor: Colors.neutral.black,
-  },
-  title: {
-    fontSize: 24,
-    fontFamily: 'Pretendard-Bold',
-    color: Colors.neutral.black,
-    marginTop: 16,
-  },
-  
-  // 본문 영역
-  body: {
-    flex: 1,
-    backgroundColor: Colors.whiteGradient.w5, // 더 밝은 베이지색
-  },
-  
   // 인사말
   greetingContainer: {
     paddingHorizontal: 24,
@@ -307,12 +142,12 @@ const styles = StyleSheet.create({
   menuButtonText: {
     fontSize: 16,
     fontFamily: 'Pretendard-SemiBold',
-    color: WHITE, // 모든 버튼 텍스트를 흰색으로 통일
+    color: WHITE,
   },
   
   // 개별 버튼 스타일
   logoutButton: {
-    backgroundColor: Colors.whiteGradient.w2, // 비밀번호 변경과 같은 색상
+    backgroundColor: Colors.whiteGradient.w2,
   },
   passwordButton: {
     backgroundColor: Colors.whiteGradient.w2,
@@ -332,17 +167,11 @@ const styles = StyleSheet.create({
   bottomImageWrapper: {
     width: 100,
     height: 100,
-    // borderRadius: 50,
-    // backgroundColor: Colors.whiteGradient.w3,
     justifyContent: 'center',
     alignItems: 'center',
-    // // 원형 테두리 추가
-    // borderWidth: 3,
-    // borderColor: BRAND_COLOR,
   },
   bottomImage: {
     width: 60,
     height: 60,
-    // tintColor 제거하여 원본 이미지 색상 유지
   },
 });
