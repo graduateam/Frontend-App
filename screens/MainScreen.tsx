@@ -1,22 +1,25 @@
+import MyPageSidebar from '@/components/MyPageSidebar';
 import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
-import React from 'react';
+import React, { useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
 export default function MainScreen() {
+  const [isMyPageVisible, setIsMyPageVisible] = useState(false);
+
   const handleMyPage = () => {
     console.log('마이페이지 클릭');
-    // TODO: 마이페이지로 이동
+    setIsMyPageVisible(true);
   };
 
   const handlePopup = () => {
@@ -94,6 +97,12 @@ export default function MainScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* 마이페이지 사이드바 */}
+      <MyPageSidebar
+        visible={isMyPageVisible}
+        onClose={() => setIsMyPageVisible(false)}
+      />
     </SafeAreaView>
   );
 }
