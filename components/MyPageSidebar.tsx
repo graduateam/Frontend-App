@@ -24,34 +24,43 @@ interface MyPageSidebarProps {
 }
 
 export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) {
-  const slideAnim = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
+  // 초기값을 화면 밖으로 더 멀리 설정
+  const slideAnim = useRef(new Animated.Value(SIDEBAR_WIDTH + 100)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [modalVisible, setModalVisible] = useState(visible);
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     if (visible) {
+      // 애니메이션 값을 먼저 초기화 (화면 밖으로 더 멀리)
+      slideAnim.setValue(SIDEBAR_WIDTH + 100);
+      fadeAnim.setValue(0);
+      
       // Modal을 먼저 보이게 한 후 애니메이션 시작
       setModalVisible(true);
-      // 사이드바 열기 애니메이션
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]).start();
+      
+      // 짧은 지연 후 애니메이션 실행
+      setTimeout(() => {
+        // 사이드바 열기 애니메이션
+        Animated.parallel([
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 300,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 50);
     } else {
       // 사이드바 닫기 애니메이션
       Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: SIDEBAR_WIDTH,
+          toValue: SIDEBAR_WIDTH + 100,
           duration: 300,
           easing: Easing.in(Easing.ease),
           useNativeDriver: true,
@@ -111,30 +120,34 @@ export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) 
       visible={modalVisible}
       animationType="none"
       onRequestClose={onClose}
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
     >
-      <StatusBar backgroundColor={modalVisible && visible ? 'rgba(0,0,0,0.5)' : BRAND_COLOR} />
-      
-      {/* 배경 오버레이 */}
-      <TouchableWithoutFeedback onPress={onClose}>
-        <Animated.View 
-          style={[
-            styles.overlay,
-            {
-              opacity: fadeAnim,
-            },
-          ]} 
-        />
-      </TouchableWithoutFeedback>
+      <View style={{ flex: 1, overflow: 'hidden' }}>
+        <StatusBar backgroundColor={modalVisible && visible ? 'rgba(0,0,0,0.5)' : BRAND_COLOR} />
+        
+        {/* 배경 오버레이 */}
+        <TouchableWithoutFeedback onPress={onClose}>
+          <Animated.View 
+            style={[
+              styles.overlay,
+              {
+                opacity: fadeAnim,
+              },
+            ]}
+            pointerEvents={visible ? 'auto' : 'none'}
+          />
+        </TouchableWithoutFeedback>
 
-      {/* 사이드바 콘텐츠 */}
-      <Animated.View
-        style={[
-          styles.sidebar,
-          {
-            transform: [{ translateX: slideAnim }],
-          },
-        ]}
-      >
+        {/* 사이드바 콘텐츠 */}
+        <Animated.View
+          style={[
+            styles.sidebar,
+            {
+              transform: [{ translateX: slideAnim }],
+            },
+          ]}
+        >
         {/* 헤더 - 마이페이지 타이틀만 포함 */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -198,18 +211,15 @@ export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) 
             </View>
           </View>
         </View>
-      </Animated.View>
+              </Animated.View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   sidebar: {
@@ -227,6 +237,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+    overflow: 'hidden',
   },
   
   // 헤더 - 배경색 구분
