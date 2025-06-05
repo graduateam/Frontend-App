@@ -4,15 +4,15 @@ import { CommonStyles } from '@/constants/CommonStyles';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function RegisterScreen() {
@@ -53,7 +53,8 @@ export default function RegisterScreen() {
     }
     
     console.log('회원가입 시도:', formData);
-    Alert.alert('알림', '회원가입 기능은 준비 중입니다.');
+    // 회원가입 성공 화면으로 이동
+    router.replace('/register-success');
   };
 
   const handleBack = () => {
