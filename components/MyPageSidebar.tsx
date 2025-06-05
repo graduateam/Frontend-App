@@ -14,9 +14,10 @@ import BaseSidebar from './BaseSidebar';
 interface MyPageSidebarProps {
   visible: boolean;
   onClose: () => void;
+  onPasswordChange: () => void;
 }
 
-export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) {
+export default function MyPageSidebar({ visible, onClose, onPasswordChange }: MyPageSidebarProps) {
   const handleLogout = () => {
     Alert.alert(
       '로그아웃',
@@ -34,8 +35,8 @@ export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) 
 
   const handlePasswordChange = () => {
     console.log('비밀번호 변경');
-    onClose();
-    // TODO: 비밀번호 변경 화면으로 이동
+    // 부모 컴포넌트의 onPasswordChange 호출
+    onPasswordChange();
   };
 
   const handleDeleteAccount = () => {
