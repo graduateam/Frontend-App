@@ -1,3 +1,4 @@
+import DeleteAccountModal from '@/components/DeleteAccountModal';
 import MyPageSidebar from '@/components/MyPageSidebar';
 import PasswordChangeModal from '@/components/PasswordChangeModal';
 import SettingsSidebar from '@/components/SettingsSidebar';
@@ -20,6 +21,7 @@ export default function MainScreen() {
   const [isMyPageVisible, setIsMyPageVisible] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isPasswordChangeVisible, setIsPasswordChangeVisible] = useState(false);
+  const [isDeleteAccountVisible, setIsDeleteAccountVisible] = useState(false);
 
   const handleMyPage = () => {
     console.log('마이페이지 클릭');
@@ -110,6 +112,10 @@ export default function MainScreen() {
           setIsMyPageVisible(false);
           setIsPasswordChangeVisible(true);
         }}
+        onDeleteAccount={() => {
+          setIsMyPageVisible(false);
+          setIsDeleteAccountVisible(true);
+        }}
       />
 
       {/* 환경설정 사이드바 */}
@@ -122,6 +128,12 @@ export default function MainScreen() {
       <PasswordChangeModal
         visible={isPasswordChangeVisible}
         onClose={() => setIsPasswordChangeVisible(false)}
+      />
+      
+      {/* 회원탈퇴 모달 */}
+      <DeleteAccountModal
+        visible={isDeleteAccountVisible}
+        onClose={() => setIsDeleteAccountVisible(false)}
       />
     </SafeAreaView>
   );

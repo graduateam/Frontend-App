@@ -15,9 +15,10 @@ interface MyPageSidebarProps {
   visible: boolean;
   onClose: () => void;
   onPasswordChange: () => void;
+  onDeleteAccount: () => void;
 }
 
-export default function MyPageSidebar({ visible, onClose, onPasswordChange }: MyPageSidebarProps) {
+export default function MyPageSidebar({ visible, onClose, onPasswordChange, onDeleteAccount }: MyPageSidebarProps) {
   const handleLogout = () => {
     Alert.alert(
       '로그아웃',
@@ -40,18 +41,9 @@ export default function MyPageSidebar({ visible, onClose, onPasswordChange }: My
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      '회원탈퇴',
-      '정말 탈퇴하시겠습니까?\n탈퇴 후에는 복구할 수 없습니다.',
-      [
-        { text: '취소', style: 'cancel' },
-        { text: '확인', onPress: () => {
-          console.log('회원탈퇴');
-          onClose();
-          // TODO: 실제 회원탈퇴 로직 구현
-        }, style: 'destructive' },
-      ]
-    );
+    console.log('회원탈퇴');
+    // 부모 컴포넌트의 onDeleteAccount 호출
+    onDeleteAccount();
   };
 
   return (
