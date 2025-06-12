@@ -1,4 +1,5 @@
 import { Colors, WHITE } from '@/constants/Colors';
+import { router } from 'expo-router';
 import React from 'react';
 import {
   Alert,
@@ -14,9 +15,11 @@ import BaseSidebar from './BaseSidebar';
 interface MyPageSidebarProps {
   visible: boolean;
   onClose: () => void;
+  onPasswordChange: () => void;
+  onDeleteAccount: () => void;
 }
 
-export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) {
+export default function MyPageSidebar({ visible, onClose, onPasswordChange, onDeleteAccount }: MyPageSidebarProps) {
   const handleLogout = () => {
     Alert.alert(
       '로그아웃',
@@ -26,7 +29,9 @@ export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) 
         { text: '확인', onPress: () => {
           console.log('로그아웃');
           onClose();
-          // TODO: 실제 로그아웃 로직 구현
+          // TODO: 실제 로그아웃 로직 구현 (토큰 삭제 등)
+          // MainScreen을 종료하고 StartScreen으로 돌아가기
+          router.back();
         }},
       ]
     );
@@ -34,23 +39,14 @@ export default function MyPageSidebar({ visible, onClose }: MyPageSidebarProps) 
 
   const handlePasswordChange = () => {
     console.log('비밀번호 변경');
-    onClose();
-    // TODO: 비밀번호 변경 화면으로 이동
+    // 부모 컴포넌트의 onPasswordChange 호출
+    onPasswordChange();
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      '회원탈퇴',
-      '정말 탈퇴하시겠습니까?\n탈퇴 후에는 복구할 수 없습니다.',
-      [
-        { text: '취소', style: 'cancel' },
-        { text: '확인', onPress: () => {
-          console.log('회원탈퇴');
-          onClose();
-          // TODO: 실제 회원탈퇴 로직 구현
-        }, style: 'destructive' },
-      ]
-    );
+    console.log('회원탈퇴');
+    // 부모 컴포넌트의 onDeleteAccount 호출
+    onDeleteAccount();
   };
 
   return (
