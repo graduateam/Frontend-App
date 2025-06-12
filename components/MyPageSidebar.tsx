@@ -1,4 +1,5 @@
 import { Colors, WHITE } from '@/constants/Colors';
+import { router } from 'expo-router';
 import React from 'react';
 import {
   Alert,
@@ -28,7 +29,9 @@ export default function MyPageSidebar({ visible, onClose, onPasswordChange, onDe
         { text: '확인', onPress: () => {
           console.log('로그아웃');
           onClose();
-          // TODO: 실제 로그아웃 로직 구현
+          // TODO: 실제 로그아웃 로직 구현 (토큰 삭제 등)
+          // MainScreen을 종료하고 StartScreen으로 돌아가기
+          router.back();
         }},
       ]
     );
