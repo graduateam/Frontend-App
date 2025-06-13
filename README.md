@@ -18,15 +18,44 @@ React Native Expo 기반의 스마트 도로반사경 모바일 애플리케이�
 npm install
 ```
 
-### 앱 실행
+AsyncStorage를 사용하는 환경설정 기능을 위해 다음 패키지가 필요합니다:
 ```bash
-npx expo start
+npx expo install @react-native-async-storage/async-storage
 ```
 
-만약 위 명령어로 실행되지 않는다면:
+### 앱 실행
+
+#### 방법 1: Expo Go 사용 (권장)
 ```bash
+npx expo start -c
+```
+- Expo Go 앱에서 실행
+- `-c` 플래그는 Metro bundler 캐시를 클리어
+- AsyncStorage를 포함한 모든 Expo SDK 모듈이 자동으로 사용 가능
+- 별도의 네이티브 빌드 없이 바로 실행 가능
+
+#### 방법 2: Custom Development Client 사용
+네이티브 모듈을 직접 관리하거나 커스터마이징이 필요한 경우:
+
+```bash
+# 1. expo-dev-client 설치
+npx expo install expo-dev-client
+
+# 2. 프리빌드 실행
+npx expo prebuild
+
+# 3. 네이티브 앱 빌드 및 실행
+# iOS
+npx expo run:ios
+
+# Android  
+npx expo run:android
+
+# 4. 이후 실행 시
 npx expo start --dev-client
 ```
+
+**참고**: 대부분의 경우 방법 1(Expo Go)로 충분하며, 커스텀 네이티브 모듈이 필요한 경우에만 방법 2를 사용하세요.
 
 ## 📂 프로젝트 구조
 
