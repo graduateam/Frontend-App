@@ -213,6 +213,17 @@ smartroadreflector/
 - [ ] 환경설정 값 저장 (AsyncStorage)
 - [ ] 네이버지도 추가
 - [ ] 실제 인증 토큰 관리
+- [ ] useInsertionEffect 경고 해결 (로그아웃 시 Modal 관련)
+
+## 🐛 알려진 이슈
+
+### useInsertionEffect 경고
+- **현상**: MyPageSidebar에서 로그아웃 시 `useInsertionEffect must not schedule updates` 경고 발생
+- **원인**: React Native Modal과 navigation 타이밍 충돌 (React 19.0.0 + Modal 컴포넌트 호환성)
+- **영향**: 기능 동작에는 영향 없음, 개발 환경에서만 경고 표시
+- **해결 방안**: 
+  - 실제 인증 시스템 구현 시 조건부 렌더링으로 자연스럽게 해결 예상
+  - 필요시 React 버전 다운그레이드 고려 (19.0.0 → 18.x)
 
 ## 🤝 기여하기
 
