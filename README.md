@@ -18,15 +18,44 @@ React Native Expo 기반의 스마트 도로반사경 모바일 애플리케이�
 npm install
 ```
 
-### 앱 실행
+AsyncStorage를 사용하는 환경설정 기능을 위해 다음 패키지가 필요합니다:
 ```bash
-npx expo start
+npx expo install @react-native-async-storage/async-storage
 ```
 
-만약 위 명령어로 실행되지 않는다면:
+### 앱 실행
+
+#### 방법 1: Expo Go 사용 (권장)
 ```bash
+npx expo start -c
+```
+- Expo Go 앱에서 실행
+- `-c` 플래그는 Metro bundler 캐시를 클리어
+- AsyncStorage를 포함한 모든 Expo SDK 모듈이 자동으로 사용 가능
+- 별도의 네이티브 빌드 없이 바로 실행 가능
+
+#### 방법 2: Custom Development Client 사용
+네이티브 모듈을 직접 관리하거나 커스터마이징이 필요한 경우:
+
+```bash
+# 1. expo-dev-client 설치
+npx expo install expo-dev-client
+
+# 2. 프리빌드 실행
+npx expo prebuild
+
+# 3. 네이티브 앱 빌드 및 실행
+# iOS
+npx expo run:ios
+
+# Android  
+npx expo run:android
+
+# 4. 이후 실행 시
 npx expo start --dev-client
 ```
+
+**참고**: 대부분의 경우 방법 1(Expo Go)로 충분하며, 커스텀 네이티브 모듈이 필요한 경우에만 방법 2를 사용하세요.
 
 ## 📂 프로젝트 구조
 
@@ -184,6 +213,17 @@ smartroadreflector/
 - [ ] 환경설정 값 저장 (AsyncStorage)
 - [ ] 네이버지도 추가
 - [ ] 실제 인증 토큰 관리
+- [ ] useInsertionEffect 경고 해결 (로그아웃 시 Modal 관련)
+
+## 🐛 알려진 이슈
+
+### useInsertionEffect 경고
+- **현상**: MyPageSidebar에서 로그아웃 시 `useInsertionEffect must not schedule updates` 경고 발생
+- **원인**: React Native Modal과 navigation 타이밍 충돌 (React 19.0.0 + Modal 컴포넌트 호환성)
+- **영향**: 기능 동작에는 영향 없음, 개발 환경에서만 경고 표시
+- **해결 방안**: 
+  - 실제 인증 시스템 구현 시 조건부 렌더링으로 자연스럽게 해결 예상
+  - 필요시 React 버전 다운그레이드 고려 (19.0.0 → 18.x)
 
 ## 🤝 기여하기
 

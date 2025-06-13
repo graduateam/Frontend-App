@@ -1,11 +1,12 @@
 import { BRAND_COLOR, Colors } from '@/constants/Colors';
-import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useState } from 'react';
 import {
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import BaseSidebar from './BaseSidebar';
 
@@ -20,22 +21,59 @@ interface SettingItem {
   checked: boolean;
 }
 
+const SETTINGS_STORAGE_KEY = '@smart_road_reflector_settings';
+
+// 기본 설정값
+const DEFAULT_SETTINGS: SettingItem[] = [
+  { id: 'vibration', label: '진동', checked: true },
+  { id: 'voiceDescription', label: '음성 설명', checked: true },
+  { id: 'reducedVisualEffects', label: '감조된 시각효과', checked: true },
+  { id: 'startWithOthers', label: '다른 이용과 같이 시작', checked: true },
+];
+
 export default function SettingsSidebar({ visible, onClose }: SettingsSidebarProps) {
-  const [settings, setSettings] = useState<SettingItem[]>([
-    { id: 'vibration', label: '진동', checked: true },
-    { id: 'voiceDescription', label: '음성 설명', checked: true },
-    { id: 'reducedVisualEffects', label: '감조된 시각효과', checked: true },
-    { id: 'startWithOthers', label: '다른 이용과 같이 시작', checked: true },
-  ]);
+  const [settings, setSettings] = useState<SettingItem[]>(DEFAULT_SETTINGS);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 컴포넌트가 마운트될 때 저장된 설정 불러오기
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  // 저장된 설정 불러오기
+  const loadSettings = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (savedSettings !== null) {
+        const parsedSettings = JSON.parse(savedSettings);
+        setSettings(parsedSettings);
+      }
+    } catch (error) {
+      console.error('설정 불러오기 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 설정 저장하기
+  const saveSettings = async (newSettings: SettingItem[]) => {
+    try {
+      await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(newSettings));
+    } catch (error) {
+      console.error('설정 저장 실패:', error);
+    }
+  };
 
   const toggleSetting = (id: string) => {
-    setSettings(prev => 
-      prev.map(item => 
-        item.id === id ? { ...item, checked: !item.checked } : item
-      )
+    const newSettings = settings.map(item => 
+      item.id === id ? { ...item, checked: !item.checked } : item
     );
+    
+    setSettings(newSettings);
+    saveSettings(newSettings); // 변경된 설정 즉시 저장
+    
     console.log(`${id} 설정 변경`);
-    // TODO: 실제 설정 변경 로직 구현
+    // TODO: 실제 설정 변경 로직 구현 (진동 on/off 등)
   };
 
   return (
@@ -46,7 +84,7 @@ export default function SettingsSidebar({ visible, onClose }: SettingsSidebarPro
       direction="left"
     >
       <View style={styles.container}>
-        {settings.map((item) => (
+        {!isLoading && settings.map((item) => (
           <TouchableOpacity
             key={item.id}
             style={styles.settingItem}
