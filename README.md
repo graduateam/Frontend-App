@@ -11,6 +11,7 @@ React Native Expo 기반의 스마트 도로반사경 모바일 애플리케이�
 - **폰트**: Pretendard
 - **메인 컬러**: Traffic Orange (#E35501)
 
+
 ## 🚀 시작하기
 
 ### 의존성 설치
