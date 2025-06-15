@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.realpinkrabbit.smartroadreflector",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "스마트 도로반사경이 현재 위치를 기반으로 주변 도로 정보를 제공하기 위해 위치 권한이 필요합니다."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +21,11 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.realpinkrabbit.smartroadreflector"
+      "package": "com.realpinkrabbit.smartroadreflector",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -34,7 +42,21 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      [
+        "@mj-studio/react-native-naver-map",
+        {
+          "client_id": "doinm029l0",
+          "android": {
+            "ACCESS_FINE_LOCATION": "스마트 도로반사경이 현재 위치를 기반으로 주변 도로 정보를 제공하기 위해 위치 권한이 필요합니다.",
+            "ACCESS_COARSE_LOCATION": "스마트 도로반사경이 현재 위치를 기반으로 주변 도로 정보를 제공하기 위해 위치 권한이 필요합니다."
+          },
+          "ios": {
+            "NSLocationWhenInUseUsageDescription": "스마트 도로반사경이 현재 위치를 기반으로 주변 도로 정보를 제공하기 위해 위치 권한이 필요합니다."
+          }
+        }
+      ],
+      "expo-dev-client"
     ],
     "experiments": {
       "typedRoutes": true

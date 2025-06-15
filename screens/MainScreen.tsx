@@ -1,5 +1,6 @@
 import DeleteAccountModal from '@/components/DeleteAccountModal';
 import MyPageSidebar from '@/components/MyPageSidebar';
+import NaverMapView from '@/components/NaverMapView';
 import PasswordChangeModal from '@/components/PasswordChangeModal';
 import SettingsSidebar from '@/components/SettingsSidebar';
 import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
@@ -7,7 +8,9 @@ import React, { useState } from 'react';
 import {
   Dimensions,
   Image,
+  Platform,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -16,6 +19,7 @@ import {
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
+const MAP_HEIGHT = width; // 정사각형 지도
 
 export default function MainScreen() {
   const [isMyPageVisible, setIsMyPageVisible] = useState(false);
@@ -42,66 +46,79 @@ export default function MainScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor={BRAND_COLOR} barStyle="light-content" />
       
-      <View style={styles.content}>
-        {/* 배경 및 하단 어두운 영역 */}
-        <View style={styles.backgroundContainer}>
-          {/* 하단 어두운 네모 영역 */}
-          <View style={styles.darkArea} />
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* 상단 지도 영역 */}
+        <View style={styles.mapSection}>
+          <NaverMapView height={MAP_HEIGHT} />
         </View>
 
-        {/* 양측 벽 이미지 */}
-        <Image
-          source={require('@/assets/images/image_wall_1.png')}
-          style={styles.leftWall}
-          resizeMode="contain"
-        />
-        <Image
-          source={require('@/assets/images/image_wall_2.png')}
-          style={styles.rightWall}
-          resizeMode="contain"
-        />
+        {/* 하단 도로 배경 영역 */}
+        <View style={styles.roadSection}>
+          {/* 배경 및 하단 어두운 영역 */}
+          <View style={styles.backgroundContainer}>
+            {/* 하단 어두운 네모 영역 */}
+            <View style={styles.darkArea} />
+          </View>
 
-        {/* 하단 네비게이션 버튼 */}
-        <View style={styles.bottomNavigation}>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={handleMyPage}
-            activeOpacity={0.8}
-          >
-            <Image
-              source={require('@/assets/images/icon_user.png')}
-              style={styles.navIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.navText}>마이페이지</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={handlePopup}
-            activeOpacity={0.8}
-          >
-            <Image
-              source={require('@/assets/images/icon_minimize.png')}
-              style={styles.navIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.navText}>팝업</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={handleSettings}
-            activeOpacity={0.8}
-          >
-            <Image
-              source={require('@/assets/images/icon_settings.png')}
-              style={styles.navIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.navText}>환경설정</Text>
-          </TouchableOpacity>
+          {/* 양측 벽 이미지 */}
+          <Image
+            source={require('@/assets/images/image_wall_1.png')}
+            style={styles.leftWall}
+            resizeMode="contain"
+          />
+          <Image
+            source={require('@/assets/images/image_wall_2.png')}
+            style={styles.rightWall}
+            resizeMode="contain"
+          />
         </View>
+      </ScrollView>
+
+      {/* 하단 네비게이션 버튼 (고정) */}
+      <View style={styles.bottomNavigation}>
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={handleMyPage}
+          activeOpacity={0.8}
+        >
+          <Image
+            source={require('@/assets/images/icon_user.png')}
+            style={styles.navIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.navText}>마이페이지</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={handlePopup}
+          activeOpacity={0.8}
+        >
+          <Image
+            source={require('@/assets/images/icon_minimize.png')}
+            style={styles.navIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.navText}>팝업</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={handleSettings}
+          activeOpacity={0.8}
+        >
+          <Image
+            source={require('@/assets/images/icon_settings.png')}
+            style={styles.navIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.navText}>환경설정</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 마이페이지 사이드바 */}
@@ -144,8 +161,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BRAND_COLOR,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  
+  // 지도 섹션
+  mapSection: {
+    width: width,
+    height: MAP_HEIGHT,
+    backgroundColor: Colors.whiteGradient.w5,
+  },
+  
+  // 도로 섹션
+  roadSection: {
+    flex: 1,
+    minHeight: height - MAP_HEIGHT - 100, // 지도 높이와 네비게이션 높이를 뺀 나머지
+    backgroundColor: BRAND_COLOR,
     position: 'relative',
   },
   
@@ -159,8 +193,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: height * 0.3, // 화면 높이의 30%
-    backgroundColor: Colors.blackGradient.b2, // 어두운 오렌지-브라운
+    height: 200, // 고정 높이
+    backgroundColor: Colors.blackGradient.b2,
   },
   
   // 양측 벽 이미지
@@ -168,18 +202,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     bottom: 0,
-    width: width * 0.15, // 화면 너비의 15%
-    height: height * 0.5, // 화면 높이의 50%
+    width: width * 0.15,
+    height: 250,
   },
   rightWall: {
     position: 'absolute',
     right: 0,
     bottom: 0,
-    width: width * 0.15, // 화면 너비의 15%
-    height: height * 0.5, // 화면 높이의 50%
+    width: width * 0.15,
+    height: 250,
   },
   
-  // 하단 네비게이션
+  // 하단 네비게이션 (고정)
   bottomNavigation: {
     position: 'absolute',
     bottom: 0,
@@ -189,7 +223,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 20,
     paddingHorizontal: 20,
-    paddingBottom: 30, // iPhone 노치 대응
+    paddingBottom: Platform.OS === 'ios' ? 30 : 20, // iPhone 노치 대응
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // 반투명 배경
   },
   navButton: {
     alignItems: 'center',
