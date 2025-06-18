@@ -27,8 +27,8 @@ const SETTINGS_STORAGE_KEY = '@smart_road_reflector_settings';
 const DEFAULT_SETTINGS: SettingItem[] = [
   { id: 'vibration', label: '진동', checked: true },
   { id: 'voiceDescription', label: '음성 설명', checked: true },
-  { id: 'reducedVisualEffects', label: '감조된 시각효과', checked: true },
-  { id: 'startWithOthers', label: '다른 이용과 같이 시작', checked: true },
+  { id: 'reducedVisualEffects', label: '강조된 시각효과', checked: true },
+  { id: 'startWithOthers', label: '다른 어플과 같이 시작', checked: true },
 ];
 
 export default function SettingsSidebar({ visible, onClose }: SettingsSidebarProps) {
