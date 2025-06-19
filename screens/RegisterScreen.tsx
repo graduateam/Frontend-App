@@ -1,9 +1,11 @@
 import CustomInput from '@/components/CustomInput';
 import { Colors } from '@/constants/Colors';
 import { CommonStyles } from '@/constants/CommonStyles';
+import { apiService } from '@/services/api';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   SafeAreaView,
@@ -23,6 +25,7 @@ export default function RegisterScreen() {
     passwordConfirm: '',
     email: '',
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -31,7 +34,7 @@ export default function RegisterScreen() {
     }));
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     // 입력 검증
     const { id, nickname, password, passwordConfirm, email } = formData;
     
@@ -52,9 +55,32 @@ export default function RegisterScreen() {
       return;
     }
     
-    console.log('회원가입 시도:', formData);
-    // 회원가입 성공 화면으로 이동
-    router.replace('/register-success');
+    setIsLoading(true);
+    
+    try {
+      console.log('회원가입 시도:', { id, nickname, email });
+      
+      const result = await apiService.register({
+        username: id,
+        nickname: nickname,
+        password: password,
+        email: email,
+      });
+
+      if (result.success) {
+        // 회원가입 성공
+        console.log('회원가입 성공:', result.data?.user);
+        router.replace('/register-success');
+      } else {
+        // 회원가입 실패
+        Alert.alert('회원가입 실패', result.message || '회원가입에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('회원가입 오류:', error);
+      Alert.alert('오류', '회원가입 중 문제가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -97,6 +123,7 @@ export default function RegisterScreen() {
             placeholder="아이디"
             value={formData.id}
             onChangeText={(value) => handleInputChange('id', value)}
+            editable={!isLoading}
           />
           
           <CustomInput
@@ -104,6 +131,7 @@ export default function RegisterScreen() {
             placeholder="닉네임"
             value={formData.nickname}
             onChangeText={(value) => handleInputChange('nickname', value)}
+            editable={!isLoading}
           />
           
           <CustomInput
@@ -112,6 +140,7 @@ export default function RegisterScreen() {
             value={formData.password}
             onChangeText={(value) => handleInputChange('password', value)}
             secureTextEntry
+            editable={!isLoading}
           />
           
           <CustomInput
@@ -119,6 +148,7 @@ export default function RegisterScreen() {
             value={formData.passwordConfirm}
             onChangeText={(value) => handleInputChange('passwordConfirm', value)}
             secureTextEntry
+            editable={!isLoading}
           />
           
           <CustomInput
@@ -127,17 +157,23 @@ export default function RegisterScreen() {
             value={formData.email}
             onChangeText={(value) => handleInputChange('email', value)}
             keyboardType="email-address"
+            editable={!isLoading}
           />
         </ScrollView>
 
         {/* 회원가입 버튼 */}
         <View style={CommonStyles.buttonContainer}>
           <TouchableOpacity
-            style={CommonStyles.primaryButton}
+            style={[CommonStyles.primaryButton, isLoading && { opacity: 0.6 }]}
             onPress={handleRegister}
             activeOpacity={0.8}
+            disabled={isLoading}
           >
-            <Text style={CommonStyles.primaryButtonText}>시작하기</Text>
+            {isLoading ? (
+              <ActivityIndicator color={Colors.neutral.white} />
+            ) : (
+              <Text style={CommonStyles.primaryButtonText}>시작하기</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -152,7 +188,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   scrollContent: {
-    // gap: 8,
     paddingBottom: 20,
   },
 });

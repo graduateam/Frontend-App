@@ -1,7 +1,11 @@
+// components/MyPageSidebar.tsx
 import { Colors, WHITE } from '@/constants/Colors';
+import { apiService } from '@/services/api';
+import { User } from '@/types/api.types';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
@@ -20,19 +24,50 @@ interface MyPageSidebarProps {
 }
 
 export default function MyPageSidebar({ visible, onClose, onPasswordChange, onDeleteAccount }: MyPageSidebarProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // 사용자 정보 가져오기
+  useEffect(() => {
+    if (visible) {
+      loadUserInfo();
+    }
+  }, [visible]);
+
+  const loadUserInfo = async () => {
+    try {
+      const user = await apiService.getCurrentUser();
+      setCurrentUser(user);
+    } catch (error) {
+      console.error('사용자 정보 로드 실패:', error);
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert(
       '로그아웃',
       '정말 로그아웃 하시겠습니까?',
       [
         { text: '취소', style: 'cancel' },
-        { text: '확인', onPress: () => {
-          console.log('로그아웃');
-          onClose();
-          // TODO: 실제 로그아웃 로직 구현 (토큰 삭제 등)
-          // MainScreen을 종료하고 StartScreen으로 돌아가기
-          router.back();
-        }},
+        { 
+          text: '확인', 
+          onPress: async () => {
+            setIsLoading(true);
+            try {
+              console.log('로그아웃 시도');
+              await apiService.logout();
+              
+              onClose();
+              // MainScreen을 종료하고 StartScreen으로 돌아가기
+              router.back();
+            } catch (error) {
+              console.error('로그아웃 실패:', error);
+              Alert.alert('오류', '로그아웃 중 문제가 발생했습니다.');
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        },
       ]
     );
   };
@@ -59,7 +94,9 @@ export default function MyPageSidebar({ visible, onClose, onPasswordChange, onDe
     >
       {/* 인사말 */}
       <View style={styles.greetingContainer}>
-        <Text style={styles.greeting}>반가워요 박덕철님,</Text>
+        <Text style={styles.greeting}>
+          반가워요 {currentUser?.nickname || '사용자'}님,
+        </Text>
         <Text style={styles.greetingSub}>오늘도 안전운전~ ♪</Text>
       </View>
 
@@ -69,8 +106,13 @@ export default function MyPageSidebar({ visible, onClose, onPasswordChange, onDe
           style={[styles.menuButton, styles.logoutButton]}
           onPress={handleLogout}
           activeOpacity={0.8}
+          disabled={isLoading}
         >
-          <Text style={styles.menuButtonText}>로그아웃</Text>
+          {isLoading ? (
+            <ActivityIndicator color={WHITE} />
+          ) : (
+            <Text style={styles.menuButtonText}>로그아웃</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity

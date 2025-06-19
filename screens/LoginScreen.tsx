@@ -1,9 +1,11 @@
 import CustomInput from '@/components/CustomInput';
 import { Colors } from '@/constants/Colors';
 import { CommonStyles } from '@/constants/CommonStyles';
+import { apiService } from '@/services/api';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   SafeAreaView,
@@ -16,17 +18,38 @@ import {
 export default function LoginScreen() {
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    // TODO: 실제 로그인 로직 구현
+  const handleLogin = async () => {
     if (!id.trim() || !password.trim()) {
       Alert.alert('알림', '아이디와 비밀번호를 입력해주세요.');
       return;
     }
     
-    console.log('로그인 시도:', { id, password });
-    // Alert.alert('알림', '로그인 기능은 준비 중입니다.');
-    router.replace('/main');
+    setIsLoading(true);
+    
+    try {
+      console.log('로그인 시도:', { id });
+      
+      const result = await apiService.login({
+        username: id,
+        password: password,
+      });
+
+      if (result.success) {
+        // 로그인 성공
+        console.log('로그인 성공:', result.data?.user);
+        router.replace('/main');
+      } else {
+        // 로그인 실패
+        Alert.alert('로그인 실패', result.message || '아이디 또는 비밀번호를 확인해주세요.');
+      }
+    } catch (error) {
+      console.error('로그인 오류:', error);
+      Alert.alert('오류', '로그인 중 문제가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -64,6 +87,7 @@ export default function LoginScreen() {
             placeholder="아이디"
             value={id}
             onChangeText={setId}
+            editable={!isLoading}
           />
           
           <CustomInput
@@ -71,17 +95,23 @@ export default function LoginScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            editable={!isLoading}
           />
         </View>
 
         {/* 로그인 버튼 */}
         <View style={CommonStyles.buttonContainer}>
           <TouchableOpacity
-            style={CommonStyles.primaryButton}
+            style={[CommonStyles.primaryButton, isLoading && { opacity: 0.6 }]}
             onPress={handleLogin}
             activeOpacity={0.8}
+            disabled={isLoading}
           >
-            <Text style={CommonStyles.primaryButtonText}>로그인</Text>
+            {isLoading ? (
+              <ActivityIndicator color={Colors.neutral.white} />
+            ) : (
+              <Text style={CommonStyles.primaryButtonText}>로그인</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>

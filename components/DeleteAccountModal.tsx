@@ -1,17 +1,19 @@
 import CustomInput from '@/components/CustomInput';
 import { Colors } from '@/constants/Colors';
+import { apiService } from '@/services/api';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Image,
-    Modal,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface DeleteAccountModalProps {
@@ -21,8 +23,9 @@ interface DeleteAccountModalProps {
 
 export default function DeleteAccountModal({ visible, onClose }: DeleteAccountModalProps) {
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     // 비밀번호 입력 검증
     if (!password.trim()) {
       Alert.alert('알림', '비밀번호를 입력해주세요.');
@@ -48,29 +51,7 @@ export default function DeleteAccountModal({ visible, onClose }: DeleteAccountMo
                 {
                   text: '확인',
                   style: 'destructive',
-                  onPress: () => {
-                    console.log('회원탈퇴 진행');
-                    // TODO: 실제 회원탈퇴 로직 구현
-                    
-                    // 탈퇴 완료 알림
-                    Alert.alert(
-                      '탈퇴 완료',
-                      '회원탈퇴가 완료되었습니다.',
-                      [
-                        {
-                          text: '확인',
-                          onPress: () => {
-                            // 모달 닫기
-                            onClose();
-                            // 입력 필드 초기화
-                            setPassword('');
-                            // 시작 화면으로 돌아가기
-                            router.back();
-                          }
-                        }
-                      ]
-                    );
-                  }
+                  onPress: performDeleteAccount
                 }
               ]
             );
@@ -78,6 +59,45 @@ export default function DeleteAccountModal({ visible, onClose }: DeleteAccountMo
         }
       ]
     );
+  };
+
+  const performDeleteAccount = async () => {
+    setIsLoading(true);
+    
+    try {
+      console.log('회원탈퇴 진행');
+      
+      const result = await apiService.deleteAccount({
+        password: password,
+      });
+
+      if (result.success) {
+        Alert.alert(
+          '탈퇴 완료',
+          result.message || '회원탈퇴가 완료되었습니다.',
+          [
+            {
+              text: '확인',
+              onPress: () => {
+                // 모달 닫기
+                onClose();
+                // 입력 필드 초기화
+                setPassword('');
+                // 시작 화면으로 돌아가기
+                router.back();
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('오류', result.message || '회원탈퇴에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('회원탈퇴 오류:', error);
+      Alert.alert('오류', '회원탈퇴 중 문제가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleClose = () => {
@@ -132,17 +152,23 @@ export default function DeleteAccountModal({ visible, onClose }: DeleteAccountMo
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              editable={!isLoading}
             />
           </View>
 
           {/* 회원탈퇴 버튼 */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.deleteButton}
+              style={[styles.deleteButton, isLoading && { opacity: 0.6 }]}
               onPress={handleDeleteAccount}
               activeOpacity={0.8}
+              disabled={isLoading}
             >
-              <Text style={styles.deleteButtonText}>회원탈퇴</Text>
+              {isLoading ? (
+                <ActivityIndicator color={Colors.neutral.white} />
+              ) : (
+                <Text style={styles.deleteButtonText}>회원탈퇴</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
