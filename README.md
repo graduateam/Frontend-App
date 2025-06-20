@@ -20,17 +20,19 @@
 - **Storage**: AsyncStorage
 - **Styling**: StyleSheet API
 - **Architecture**: New Architecture 지원
+- **API Service**: 3단계 모드 지원 (Dummy/Mock/Real)
 
 ## 📋 목차
 
 1. [시작하기](#-시작하기)
 2. [설치 가이드](#-설치-가이드)
-3. [프로젝트 구조](#-프로젝트-구조)
-4. [주요 기능 설명](#-주요-기능-설명)
-5. [문제 해결](#-문제-해결)
-6. [API 문서](#-api-문서)
-7. [배포](#-배포)
-8. [기여하기](#-기여하기)
+3. [API 서비스 모드](#-api-서비스-모드)
+4. [프로젝트 구조](#-프로젝트-구조)
+5. [주요 기능 설명](#-주요-기능-설명)
+6. [문제 해결](#-문제-해결)
+7. [API 문서](#-api-문서)
+8. [배포](#-배포)
+9. [기여하기](#-기여하기)
 
 ## 🚀 시작하기
 
@@ -82,6 +84,48 @@ npx expo run:android  # Android
 npx expo run:ios      # iOS (macOS에서만)
 ```
 
+## 🔀 API 서비스 모드
+
+이 프로젝트는 백엔드 개발 상태에 따라 3가지 API 모드를 지원합니다:
+
+### 1. Dummy 모드 (기본값)
+- 모든 API 호출이 성공하지만 실제 동작 없음
+- UI/UX 개발 및 디자인 검증용
+- 빠른 프로토타이핑에 적합
+
+### 2. Mock 모드
+- AsyncStorage를 사용한 로컬 데이터 관리
+- 실제 백엔드와 유사한 동작
+- **테스트 계정**: `testuser` / `password123`
+- 앱 재시작 후에도 데이터 유지
+- 네트워크 지연 시뮬레이션 (500ms)
+
+### 3. API 모드
+- 실제 백엔드 서버와 통신
+- JWT 토큰 기반 인증
+- 자동 토큰 관리 및 갱신
+
+### 모드 설정 방법
+
+`.env` 파일에서 API 모드를 설정합니다:
+
+```bash
+# Dummy 모드 (기본값)
+EXPO_PUBLIC_API_MODE=dummy
+
+# Mock 모드 (추천 - 개발/테스트용)
+EXPO_PUBLIC_API_MODE=mock
+
+# API 모드 (프로덕션)
+EXPO_PUBLIC_API_MODE=api
+EXPO_PUBLIC_API_BASE_URL=https://api.smartroadreflector.com
+```
+
+⚠️ **중요**: 환경 변수 변경 후 반드시 앱을 재시작해야 합니다:
+```bash
+npx expo start -c
+```
+
 ## 📦 설치 가이드
 
 ### 1단계: 프로젝트 클론
@@ -126,8 +170,12 @@ cp .env.example .env
 
 `.env` 파일 편집:
 ```env
+# 네이버 지도 API 키
 EXPO_PUBLIC_NAVER_MAP_CLIENT_ID=발급받은_Client_ID
 EXPO_PUBLIC_NAVER_MAP_CLIENT_SECRET=발급받은_Client_Secret
+
+# API 모드 설정
+EXPO_PUBLIC_API_MODE=mock  # 개발 시 mock 모드 추천
 ```
 
 ### 4단계: Android 설정 확인
@@ -176,8 +224,8 @@ smartroadreflector/
 │
 ├── 🖼️ screens/                  # 화면 컴포넌트
 │   ├── StartScreen.tsx         # 시작 화면 UI
-│   ├── LoginScreen.tsx         # 로그인 화면 UI
-│   ├── RegisterScreen.tsx      # 회원가입 화면 UI
+│   ├── LoginScreen.tsx         # 로그인 화면 UI (API 연동)
+│   ├── RegisterScreen.tsx      # 회원가입 화면 UI (API 연동)
 │   ├── RegisterSuccessScreen.tsx # 회원가입 성공 화면 UI
 │   └── MainScreen.tsx          # 메인 화면 UI
 │
@@ -185,14 +233,29 @@ smartroadreflector/
 │   ├── CustomInput.tsx         # 커스텀 입력 필드
 │   ├── NaverMapView.tsx        # 네이버 지도 컴포넌트 ⭐
 │   ├── BaseSidebar.tsx         # 사이드바 기본 컴포넌트
-│   ├── MyPageSidebar.tsx       # 마이페이지 사이드바
-│   ├── SettingsSidebar.tsx     # 환경설정 사이드바
-│   ├── PasswordChangeModal.tsx # 비밀번호 변경 모달
-│   └── DeleteAccountModal.tsx  # 회원탈퇴 모달
+│   ├── MyPageSidebar.tsx       # 마이페이지 사이드바 (API 연동)
+│   ├── SettingsSidebar.tsx     # 환경설정 사이드바 (API 연동)
+│   ├── PasswordChangeModal.tsx # 비밀번호 변경 모달 (API 연동)
+│   └── DeleteAccountModal.tsx  # 회원탈퇴 모달 (API 연동)
 │
 ├── 🎨 constants/                # 상수 및 스타일
 │   ├── Colors.ts               # 색상 팔레트
 │   └── CommonStyles.ts         # 공통 스타일
+│
+├── 📡 services/                 # API 서비스 (NEW)
+│   └── api/
+│       ├── base.api.service.ts # 기본 API 서비스 클래스
+│       ├── dummy.api.service.ts # Dummy 모드 구현
+│       ├── mock.api.service.ts  # Mock 모드 구현
+│       ├── real.api.service.ts  # Real API 모드 구현
+│       ├── api.service.factory.ts # API 서비스 팩토리
+│       └── index.ts            # API 서비스 진입점
+│
+├── 📝 types/                    # TypeScript 타입 정의 (NEW)
+│   └── api.types.ts            # API 관련 타입 정의
+│
+├── ⚙️ config/                   # 설정 파일 (NEW)
+│   └── api.config.ts           # API 설정 관리
 │
 ├── 🛠️ android/                  # Android 네이티브 코드
 │   ├── build.gradle            # 프로젝트 레벨 설정
@@ -219,7 +282,9 @@ smartroadreflector/
 │   └── babel.config.js         # Babel 설정
 │
 └── 📚 문서
-    └── README.md               # 프로젝트 문서 (현재 파일)
+    ├── README.md               # 프로젝트 문서 (현재 파일)
+    ├── PROJECT_SUMMARY.md      # AI Assistant용 요약
+    └── TROUBLESHOOTING.md      # 문제 해결 가이드
 ```
 
 ## 🔧 주요 기능 설명
@@ -264,55 +329,57 @@ npx expo start -c --dev-client
 - 네이버 클라우드 플랫폼에서 앱 패키지명/번들ID 등록 확인
 - Android: `android/build.gradle`에 네이버 저장소 추가 확인
 
-#### 3. Android 빌드 실패
-```bash
-cd android
-./gradlew clean
-cd ..
-npx expo run:android
-```
+#### 3. API 모드가 변경되지 않는 경우
+- `.env` 파일 저장 확인
+- Metro 캐시 클리어: `npx expo start -c`
+- 앱 완전 재시작 (Metro 서버 종료 후 재시작)
 
-#### 4. iOS 빌드 실패 (Mac)
-```bash
-cd ios
-pod deintegrate
-pod install
-cd ..
-npx expo run:ios
-```
+#### 4. Mock 모드에서 로그인이 안 되는 경우
+- 테스트 계정 사용: `testuser` / `password123`
+- 또는 회원가입 후 로그인
 
-#### 5. 의존성 관련 오류
-```bash
-# 완전 재설치
-rm -rf node_modules
-rm package-lock.json
-npm install
-npx expo prebuild --clear
-```
-
-### 디버깅 팁
-
-1. **로그 확인**
-   ```bash
-   # Android 로그
-   adb logcat | grep -i "smartroad"
-   
-   # iOS 로그 (Mac)
-   xcrun simctl spawn booted log stream | grep -i "smartroad"
-   ```
-
-2. **네트워크 디버깅**
-   - React Native Debugger 사용
-   - Chrome DevTools Network 탭 활용
-
-3. **성능 프로파일링**
-   - React DevTools Profiler 사용
-   - Flipper 성능 모니터링
+자세한 문제 해결은 [TROUBLESHOOTING.md](TROUBLESHOOTING.md) 참고
 
 ## 📡 API 문서
 
-### 내부 API 구조
-- -
+### API 서비스 사용법
+
+```typescript
+import { apiService } from '@/services/api';
+
+// 로그인
+const result = await apiService.login({
+  username: 'testuser',
+  password: 'password123'
+});
+
+// 현재 사용자 정보
+const user = await apiService.getCurrentUser();
+
+// 설정 변경
+await apiService.updateSettings({
+  vibration: false,
+  voiceDescription: true,
+  reducedVisualEffects: false,
+  startWithOthers: true
+});
+```
+
+### API 메서드 목록
+
+#### 인증 관련
+- `login(request)`: 로그인
+- `register(request)`: 회원가입
+- `logout()`: 로그아웃
+- `changePassword(request)`: 비밀번호 변경
+- `deleteAccount(request)`: 회원탈퇴
+
+#### 사용자 정보
+- `getCurrentUser()`: 현재 로그인한 사용자 정보
+
+#### 설정 관련
+- `getSettings()`: 사용자 설정 조회
+- `updateSettings(settings)`: 사용자 설정 업데이트
 
 ### 외부 API
 
@@ -382,17 +449,22 @@ git checkout -b feature/new-feature
 ## 📊 프로젝트 상태
 
 ### 구현 완료 ✅
-- 네이버 지도 연동
-- 사용자 설정 저장
 - 반응형 UI/UX
+- 네이버 지도 연동
+- 사용자 인증 (로그인/회원가입)
+- 마이페이지 기능
+- 환경설정 저장/불러오기
+- API 서비스 3단계 모드
 
 ### 진행 중 🚧
-- 도로반사경 관련 데이터 표시
+- 도로반사경 데이터 표시
+- 실시간 위치 추적
 
 ### 예정 📅
-- 백엔드 API 연동
-- 사용자 인증 (로그인/회원가입)
-- 설정 기능 구현
+- 백엔드 서버 구축
+- 위험 구간 알림
+- 음성 안내
+- 팝업 기능
 
 ## 🐛 알려진 이슈
 
@@ -411,6 +483,10 @@ git checkout -b feature/new-feature
 - [Expo](https://docs.expo.dev/)
 - [Expo Router](https://expo.github.io/router/docs)
 - [네이버 지도 SDK](https://navermaps.github.io/android-map-sdk/guide-ko/)
+
+### 프로젝트 문서
+- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - AI Assistant용 프로젝트 요약
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - 상세 문제 해결 가이드
 
 ### 커뮤니티
 - [React Native 한국 커뮤니티](https://www.facebook.com/groups/react.native.ko/)
