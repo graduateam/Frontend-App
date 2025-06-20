@@ -69,6 +69,35 @@ export interface Settings {
   startWithOthers: boolean;
 }
 
+// 차량 관련 타입
+export interface Vehicle {
+  id: string;
+  type: string; // "vehicle"
+  latitude: number;
+  longitude: number;
+  heading: number; // 방향 (0-360도)
+  speed: number; // 속도 (m/s)
+  speed_kph: number; // 속도 (km/h)
+  timestamp: string; // ISO 8601 형식
+  is_collision_risk: boolean; // 충돌 위험 여부
+  ttc?: number; // Time to Collision (초)
+}
+
+export interface GetNearbyVehiclesRequest {
+  latitude: number;
+  longitude: number;
+  radius?: number; // 반경 (미터), 기본값: 500m
+}
+
+export interface GetNearbyVehiclesResponse {
+  success: boolean;
+  data?: {
+    vehicles: Vehicle[];
+    timestamp: string;
+  };
+  message?: string;
+}
+
 // API 서비스 인터페이스
 export interface IApiService {
   // 인증 관련
@@ -84,4 +113,7 @@ export interface IApiService {
   // 설정 관련
   getSettings(): Promise<Settings>;
   updateSettings(settings: Settings): Promise<{ success: boolean }>;
+  
+  // 차량 정보 관련
+  getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse>;
 }

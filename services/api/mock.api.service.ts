@@ -1,15 +1,18 @@
 // services/api/mock.api.service.ts
 import {
-    ChangePasswordRequest,
-    ChangePasswordResponse,
-    DeleteAccountRequest,
-    DeleteAccountResponse,
-    LoginRequest,
-    LoginResponse,
-    RegisterRequest,
-    RegisterResponse,
-    Settings,
-    User
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  DeleteAccountRequest,
+  DeleteAccountResponse,
+  GetNearbyVehiclesRequest,
+  GetNearbyVehiclesResponse,
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  RegisterResponse,
+  Settings,
+  User,
+  Vehicle
 } from '@/types/api.types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BaseApiService } from './base.api.service';
@@ -26,6 +29,9 @@ const STORAGE_KEYS = {
  * 로컬 저장소를 사용하여 실제 백엔드처럼 동작
  */
 export class MockApiService extends BaseApiService {
+  private mockVehicles: Map<string, Vehicle> = new Map();
+  private vehicleUpdateInterval: number | null = null;
+
   constructor() {
     super();
     this.initializeMockData();
@@ -140,7 +146,6 @@ export class MockApiService extends BaseApiService {
       },
     };
   }
-
   async logout(): Promise<{ success: boolean }> {
     console.log('[MockAPI] logout');
     
@@ -287,5 +292,100 @@ export class MockApiService extends BaseApiService {
       console.error('[MockAPI] 설정 저장 실패:', error);
       return { success: false };
     }
+  }
+
+  async getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse> {
+    console.log('[MockAPI] getNearbyVehicles 시도:', request);
+    await this.delay(200); // 네트워크 지연 시뮬레이션
+
+    const { latitude, longitude, radius = 500 } = request;
+    
+    // 처음 호출 시 차량 생성
+    if (this.mockVehicles.size === 0) {
+      this.initializeMockVehicles(latitude, longitude);
+    }
+    
+    // 차량 위치 업데이트
+    this.updateMockVehiclePositions();
+    
+    // 반경 내 차량 필터링
+    const nearbyVehicles = Array.from(this.mockVehicles.values()).filter(vehicle => {
+      const distance = this.calculateDistance(
+        latitude, longitude,
+        vehicle.latitude, vehicle.longitude
+      );
+      return distance <= radius;
+    });
+
+    return {
+      success: true,
+      data: {
+        vehicles: nearbyVehicles,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
+  private initializeMockVehicles(centerLat: number, centerLng: number) {
+    const vehicleCount = 5;
+    
+    for (let i = 0; i < vehicleCount; i++) {
+      // 중심점에서 100-500m 반경 내 랜덤 위치
+      const distance = (Math.random() * 400 + 100) / 111000; // degrees
+      const angle = Math.random() * Math.PI * 2;
+      
+      const speed = Math.random() * 11.11 + 5.56; // 20-60 km/h (5.56-16.67 m/s)
+      const vehicle: Vehicle = {
+        id: `mock_vehicle_${i}`,
+        type: 'vehicle',
+        latitude: centerLat + distance * Math.cos(angle),
+        longitude: centerLng + distance * Math.sin(angle),
+        heading: Math.random() * 360,
+        speed: speed,
+        speed_kph: speed * 3.6,
+        timestamp: new Date().toISOString(),
+        is_collision_risk: false,
+      };
+      
+      this.mockVehicles.set(vehicle.id, vehicle);
+    }
+  }
+
+  private updateMockVehiclePositions() {
+    this.mockVehicles.forEach((vehicle, id) => {
+      // 각 차량을 조금씩 이동
+      const speedInDegrees = vehicle.speed / 111000; // m/s to degrees/s
+      const headingRad = (vehicle.heading * Math.PI) / 180;
+      
+      // 방향을 약간 변경 (±10도)
+      const newHeading = (vehicle.heading + (Math.random() - 0.5) * 20 + 360) % 360;
+      const newSpeed = Math.max(5.56, Math.min(16.67, vehicle.speed + (Math.random() - 0.5) * 2));
+      
+      this.mockVehicles.set(id, {
+        ...vehicle,
+        latitude: vehicle.latitude + speedInDegrees * Math.sin(headingRad),
+        longitude: vehicle.longitude + speedInDegrees * Math.cos(headingRad),
+        heading: newHeading,
+        speed: newSpeed,
+        speed_kph: newSpeed * 3.6,
+        timestamp: new Date().toISOString(),
+      });
+    });
+  }
+
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    // 간단한 거리 계산 (미터 단위)
+    const R = 6371e3; // 지구 반경 (미터)
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
   }
 }
