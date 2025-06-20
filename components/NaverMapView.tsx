@@ -1,5 +1,6 @@
-import { apiConfig } from '@/config/api.config';
 import { Colors } from '@/constants/Colors';
+import { apiService } from '@/services/api';
+import { Person, Vehicle } from '@/types/api.types';
 import { NaverMapMarkerOverlay, NaverMapView } from '@mj-studio/react-native-naver-map';
 import * as Location from 'expo-location';
 import React, { useEffect, useRef, useState } from 'react';
@@ -33,15 +34,6 @@ interface LocationData {
   heading: number | null; // degrees (0-360)
 }
 
-interface VehicleData {
-  id: string;
-  latitude: number;
-  longitude: number;
-  speed: number; // m/s
-  heading: number; // degrees (0-360)
-  timestamp: string;
-}
-
 export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [location, setLocation] = useState(DEFAULT_LOCATION);
@@ -59,55 +51,45 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
     tilt: 0,
     bearing: 0,
   });
-  const [nearbyVehicles, setNearbyVehicles] = useState<VehicleData[]>([]);
+  const [nearbyVehicles, setNearbyVehicles] = useState<Vehicle[]>([]);
+  const [nearbyPeople, setNearbyPeople] = useState<Person[]>([]);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const vehicleUpdateInterval = useRef<number | null>(null);
+  const peopleUpdateInterval = useRef<number | null>(null);
   const mapRef = useRef<any>(null);
 
-  // Mock 차량 데이터 생성 함수
-  const generateMockVehicles = (centerLat: number, centerLng: number): VehicleData[] => {
-    const vehicles: VehicleData[] = [];
-    const vehicleCount = 5; // 5대의 차량 시뮬레이션
-    
-    for (let i = 0; i < vehicleCount; i++) {
-      // 중심점에서 약 100-500m 반경 내 랜덤 위치
-      const distance = (Math.random() * 400 + 100) / 111000; // degrees
-      const angle = Math.random() * Math.PI * 2;
-      
-      vehicles.push({
-        id: `vehicle_${i}`,
-        latitude: centerLat + distance * Math.cos(angle),
-        longitude: centerLng + distance * Math.sin(angle),
-        speed: Math.random() * 16.67 + 5.56, // 20-60 km/h (5.56-16.67 m/s)
-        heading: Math.random() * 360,
-        timestamp: new Date().toISOString(),
+  // API를 통해 주변 차량 정보 가져오기
+  const fetchNearbyVehicles = async (latitude: number, longitude: number) => {
+    try {
+      const response = await apiService.getNearbyVehicles({
+        latitude,
+        longitude,
+        radius: 500, // 500m 반경
       });
+
+      if (response.success && response.data) {
+        setNearbyVehicles(response.data.vehicles);
+      }
+    } catch (error) {
+      console.error('주변 차량 정보 조회 실패:', error);
     }
-    
-    return vehicles;
   };
 
-  // Mock 차량 데이터 업데이트 함수
-  const updateMockVehicles = () => {
-    setNearbyVehicles(prevVehicles => {
-      return prevVehicles.map(vehicle => {
-        // 각 차량을 조금씩 이동
-        const speedInDegrees = vehicle.speed / 111000; // m/s to degrees/s
-        const headingRad = (vehicle.heading * Math.PI) / 180;
-        
-        // 방향을 약간 변경 (±10도)
-        const newHeading = (vehicle.heading + (Math.random() - 0.5) * 20 + 360) % 360;
-        
-        return {
-          ...vehicle,
-          latitude: vehicle.latitude + speedInDegrees * Math.sin(headingRad),
-          longitude: vehicle.longitude + speedInDegrees * Math.cos(headingRad),
-          heading: newHeading,
-          speed: Math.max(5.56, Math.min(16.67, vehicle.speed + (Math.random() - 0.5) * 2)), // 속도 변화
-          timestamp: new Date().toISOString(),
-        };
+  // API를 통해 주변 사람 정보 가져오기
+  const fetchNearbyPeople = async (latitude: number, longitude: number) => {
+    try {
+      const response = await apiService.getNearbyPeople({
+        latitude,
+        longitude,
+        radius: 500, // 500m 반경
       });
-    });
+
+      if (response.success && response.data) {
+        setNearbyPeople(response.data.people);
+      }
+    } catch (error) {
+      console.error('주변 사람 정보 조회 실패:', error);
+    }
   };
 
   // 위치 권한 요청 및 초기 위치 가져오기
@@ -186,6 +168,10 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
               bearing: 0,
             });
             setIsFirstLocationUpdate(false);
+            
+            // 처음 위치를 받을 때 주변 차량 정보도 가져오기
+            fetchNearbyVehicles(location.coords.latitude, location.coords.longitude);
+            fetchNearbyPeople(location.coords.latitude, location.coords.longitude);
           }
         }
       );
@@ -199,16 +185,17 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
     };
   }, []);
 
-  // Mock 모드에서 차량 데이터 시뮬레이션
+  // 주기적으로 차량 및 사람 정보 업데이트
   useEffect(() => {
-    if (apiConfig.mode === 'mock' && !isLoading) {
-      // 초기 차량 데이터 생성 (현재 위치 근처)
-      const initialVehicles = generateMockVehicles(37.338861, 126.734563);
-      setNearbyVehicles(initialVehicles);
-      
-      // 1초마다 차량 위치 업데이트
+    if (!isLoading && locationData.latitude && locationData.longitude) {
+      // 1초마다 차량 정보 업데이트
       vehicleUpdateInterval.current = setInterval(() => {
-        updateMockVehicles();
+        fetchNearbyVehicles(locationData.latitude, locationData.longitude);
+      }, 1000);
+      
+      // 1초마다 사람 정보 업데이트
+      peopleUpdateInterval.current = setInterval(() => {
+        fetchNearbyPeople(locationData.latitude, locationData.longitude);
       }, 1000);
     }
     
@@ -216,8 +203,11 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
       if (vehicleUpdateInterval.current) {
         clearInterval(vehicleUpdateInterval.current);
       }
+      if (peopleUpdateInterval.current) {
+        clearInterval(peopleUpdateInterval.current);
+      }
     };
-  }, [isLoading]);
+  }, [isLoading, locationData.latitude, locationData.longitude]);
 
   // 속도를 km/h로 변환
   const getSpeedInKmh = (speedInMs: number | null): string => {
@@ -276,8 +266,8 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
           </View>
         </NaverMapMarkerOverlay>
         
-        {/* Mock 차량 마커들 */}
-        {apiConfig.mode === 'mock' && nearbyVehicles.map((vehicle) => (
+        {/* 주변 차량 마커들 */}
+        {nearbyVehicles.map((vehicle) => (
           <NaverMapMarkerOverlay
             key={vehicle.id}
             latitude={vehicle.latitude}
@@ -295,6 +285,26 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
             </View>
           </NaverMapMarkerOverlay>
         ))}
+        
+        {/* 주변 사람 마커들 */}
+        {nearbyPeople.map((person) => (
+          <NaverMapMarkerOverlay
+            key={person.id}
+            latitude={person.latitude}
+            longitude={person.longitude}
+            width={25}
+            height={25}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.personMarkerContainer}>
+              <Image
+                source={require('@/assets/images/icon_user_2.png')}
+                style={styles.personIcon}
+                resizeMode="contain"
+              />
+            </View>
+          </NaverMapMarkerOverlay>
+        ))}
       </NaverMapView>
 
       {/* 속도 및 방향 정보 표시 */}
@@ -307,10 +317,16 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
           <Text style={styles.infoLabel}>방향</Text>
           <Text style={styles.infoValue}>{getCompassDirection(locationData.heading)}</Text>
         </View>
-        {apiConfig.mode === 'mock' && (
+        {nearbyVehicles.length > 0 && (
           <View style={styles.infoBox}>
             <Text style={styles.infoLabel}>차량</Text>
             <Text style={styles.infoValue}>{nearbyVehicles.length}대</Text>
+          </View>
+        )}
+        {nearbyPeople.length > 0 && (
+          <View style={styles.infoBox}>
+            <Text style={styles.infoLabel}>사람</Text>
+            <Text style={styles.infoValue}>{nearbyPeople.length}명</Text>
           </View>
         )}
       </View>
@@ -363,6 +379,19 @@ const styles = StyleSheet.create({
     width: 25,
     height: 25,
     tintColor: Colors.primary.darkBlue, // 진한 파란색
+  },
+  
+  // 사람 마커 스타일
+  personMarkerContainer: {
+    width: 25,
+    height: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  personIcon: {
+    width: 25,
+    height: 25,
+    tintColor: Colors.primary.darkYellow, // 진한 노란색
   },
   
   // 정보 표시

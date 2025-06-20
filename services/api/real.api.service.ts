@@ -5,6 +5,8 @@ import {
   ChangePasswordResponse,
   DeleteAccountRequest,
   DeleteAccountResponse,
+  GetNearbyPeopleRequest,
+  GetNearbyPeopleResponse,
   GetNearbyVehiclesRequest,
   GetNearbyVehiclesResponse,
   LoginRequest,
@@ -272,6 +274,31 @@ export class RealApiService extends BaseApiService {
       return {
         success: false,
         message: '주변 차량 정보를 가져오는데 실패했습니다.',
+      };
+    }
+  }
+
+  async getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse> {
+    try {
+      const params = new URLSearchParams({
+        lat: request.latitude.toString(),
+        lng: request.longitude.toString(),
+        radius: (request.radius || 500).toString(),
+      });
+
+      const data = await this.fetchWithAuth(`/people/nearby?${params}`, {
+        method: 'GET',
+      });
+
+      return {
+        success: true,
+        data: data.data,
+      };
+    } catch (error) {
+      console.error('[RealAPI] 주변 사람 조회 실패:', error);
+      return {
+        success: false,
+        message: '주변 사람 정보를 가져오는데 실패했습니다.',
       };
     }
   }

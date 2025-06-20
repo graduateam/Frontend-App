@@ -4,10 +4,13 @@ import {
   ChangePasswordResponse,
   DeleteAccountRequest,
   DeleteAccountResponse,
+  GetNearbyPeopleRequest,
+  GetNearbyPeopleResponse,
   GetNearbyVehiclesRequest,
   GetNearbyVehiclesResponse,
   LoginRequest,
   LoginResponse,
+  Person,
   RegisterRequest,
   RegisterResponse,
   Settings,
@@ -30,6 +33,7 @@ const STORAGE_KEYS = {
  */
 export class MockApiService extends BaseApiService {
   private mockVehicles: Map<string, Vehicle> = new Map();
+  private mockPeople: Map<string, Person> = new Map();
   private vehicleUpdateInterval: number | null = null;
 
   constructor() {
@@ -324,6 +328,85 @@ export class MockApiService extends BaseApiService {
         timestamp: new Date().toISOString(),
       },
     };
+  }
+
+  async getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse> {
+    console.log('[MockAPI] getNearbyPeople 시도:', request);
+    await this.delay(200); // 네트워크 지연 시뮬레이션
+
+    const { latitude, longitude, radius = 500 } = request;
+    
+    // 처음 호출 시 사람 생성
+    if (this.mockPeople.size === 0) {
+      this.initializeMockPeople(latitude, longitude);
+    }
+    
+    // 사람 위치 업데이트
+    this.updateMockPeoplePositions();
+    
+    // 반경 내 사람 필터링
+    const nearbyPeople = Array.from(this.mockPeople.values()).filter(person => {
+      const distance = this.calculateDistance(
+        latitude, longitude,
+        person.latitude, person.longitude
+      );
+      return distance <= radius;
+    });
+
+    return {
+      success: true,
+      data: {
+        people: nearbyPeople,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
+  private initializeMockPeople(centerLat: number, centerLng: number) {
+    const peopleCount = 5;
+    
+    for (let i = 0; i < peopleCount; i++) {
+      // 중심점에서 50-300m 반경 내 랜덤 위치 (보행자는 차량보다 가까운 범위)
+      const distance = (Math.random() * 250 + 50) / 111000; // degrees
+      const angle = Math.random() * Math.PI * 2;
+      
+      const speed = Math.random() * 1.39 + 0.56; // 2-7 km/h (0.56-1.94 m/s) 보행 속도
+      const person: Person = {
+        id: `mock_person_${i}`,
+        type: 'person',
+        latitude: centerLat + distance * Math.cos(angle),
+        longitude: centerLng + distance * Math.sin(angle),
+        heading: Math.random() * 360,
+        speed: speed,
+        speed_kph: speed * 3.6,
+        timestamp: new Date().toISOString(),
+        is_collision_risk: false,
+      };
+      
+      this.mockPeople.set(person.id, person);
+    }
+  }
+
+  private updateMockPeoplePositions() {
+    this.mockPeople.forEach((person, id) => {
+      // 각 사람을 조금씩 이동
+      const speedInDegrees = person.speed / 111000; // m/s to degrees/s
+      const headingRad = (person.heading * Math.PI) / 180;
+      
+      // 방향을 약간 변경 (±30도, 보행자는 더 자주 방향 전환)
+      const newHeading = (person.heading + (Math.random() - 0.5) * 60 + 360) % 360;
+      const newSpeed = Math.max(0.56, Math.min(1.94, person.speed + (Math.random() - 0.5) * 0.5));
+      
+      this.mockPeople.set(id, {
+        ...person,
+        latitude: person.latitude + speedInDegrees * Math.sin(headingRad),
+        longitude: person.longitude + speedInDegrees * Math.cos(headingRad),
+        heading: newHeading,
+        speed: newSpeed,
+        speed_kph: newSpeed * 3.6,
+        timestamp: new Date().toISOString(),
+      });
+    });
   }
 
   private initializeMockVehicles(centerLat: number, centerLng: number) {

@@ -4,6 +4,8 @@ import {
   ChangePasswordResponse,
   DeleteAccountRequest,
   DeleteAccountResponse,
+  GetNearbyPeopleRequest,
+  GetNearbyPeopleResponse,
   GetNearbyVehiclesRequest,
   GetNearbyVehiclesResponse,
   IApiService,
@@ -28,6 +30,7 @@ export abstract class BaseApiService implements IApiService {
   abstract getSettings(): Promise<Settings>;
   abstract updateSettings(settings: Settings): Promise<{ success: boolean }>;
   abstract getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse>;
+  abstract getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse>;
 
   // 공통 유틸리티 메서드
   protected delay(ms: number): Promise<void> {

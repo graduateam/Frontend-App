@@ -4,6 +4,8 @@ import {
   ChangePasswordResponse,
   DeleteAccountRequest,
   DeleteAccountResponse,
+  GetNearbyPeopleRequest,
+  GetNearbyPeopleResponse,
   GetNearbyVehiclesRequest,
   GetNearbyVehiclesResponse,
   LoginRequest,
@@ -93,6 +95,19 @@ export class DummyApiService extends BaseApiService {
       success: true,
       data: {
         vehicles: [],
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
+  async getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse> {
+    console.log('[DummyAPI] getNearbyPeople 호출됨:', request);
+    await this.delay(100);
+    
+    return {
+      success: true,
+      data: {
+        people: [],
         timestamp: new Date().toISOString(),
       },
     };
