@@ -1,17 +1,20 @@
+// components/PasswordChangeModal.tsx
 import CustomInput from '@/components/CustomInput';
 import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
+import { apiService } from '@/services/api';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Image,
-    Modal,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface PasswordChangeModalProps {
@@ -22,8 +25,9 @@ interface PasswordChangeModalProps {
 export default function PasswordChangeModal({ visible, onClose }: PasswordChangeModalProps) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     // 입력 검증
     if (!currentPassword.trim() || !newPassword.trim()) {
       Alert.alert('알림', '모든 필드를 입력해주세요.');
@@ -35,28 +39,44 @@ export default function PasswordChangeModal({ visible, onClose }: PasswordChange
       return;
     }
     
-    console.log('비밀번호 변경 시도');
-    // TODO: 실제 비밀번호 변경 로직 구현
+    setIsLoading(true);
     
-    // 비밀번호 변경 후 시작 화면으로 이동
-    Alert.alert(
-      '알림', 
-      '비밀번호가 변경되었습니다.\n다시 로그인해주세요.',
-      [
-        {
-          text: '확인',
-          onPress: () => {
-            // 모달 닫기
-            onClose();
-            // 입력 필드 초기화
-            setCurrentPassword('');
-            setNewPassword('');
-            // MainScreen을 종료하고 기존 StartScreen으로 돌아가기
-            router.back();
-          }
-        }
-      ]
-    );
+    try {
+      console.log('비밀번호 변경 시도');
+      
+      const result = await apiService.changePassword({
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      });
+
+      if (result.success) {
+        Alert.alert(
+          '알림', 
+          result.message || '비밀번호가 변경되었습니다.\n다시 로그인해주세요.',
+          [
+            {
+              text: '확인',
+              onPress: () => {
+                // 모달 닫기
+                onClose();
+                // 입력 필드 초기화
+                setCurrentPassword('');
+                setNewPassword('');
+                // MainScreen을 종료하고 기존 StartScreen으로 돌아가기
+                router.back();
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('오류', result.message || '비밀번호 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('비밀번호 변경 오류:', error);
+      Alert.alert('오류', '비밀번호 변경 중 문제가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleClose = () => {
@@ -105,6 +125,7 @@ export default function PasswordChangeModal({ visible, onClose }: PasswordChange
               value={currentPassword}
               onChangeText={setCurrentPassword}
               secureTextEntry
+              editable={!isLoading}
             />
             
             <CustomInput
@@ -113,17 +134,23 @@ export default function PasswordChangeModal({ visible, onClose }: PasswordChange
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry
+              editable={!isLoading}
             />
           </View>
 
           {/* 비밀번호 변경 버튼 */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={[styles.primaryButton, isLoading && { opacity: 0.6 }]}
               onPress={handlePasswordChange}
               activeOpacity={0.8}
+              disabled={isLoading}
             >
-              <Text style={styles.primaryButtonText}>비밀번호 변경</Text>
+              {isLoading ? (
+                <ActivityIndicator color={WHITE} />
+              ) : (
+                <Text style={styles.primaryButtonText}>비밀번호 변경</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

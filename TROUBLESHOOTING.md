@@ -8,8 +8,9 @@
 2. [빌드 오류](#빌드-오류)
 3. [런타임 오류](#런타임-오류)
 4. [네이버 지도 문제](#네이버-지도-문제)
-5. [개발 환경 문제](#개발-환경-문제)
-6. [성능 문제](#성능-문제)
+5. [API 서비스 문제](#api-서비스-문제)
+6. [개발 환경 문제](#개발-환경-문제)
+7. [성능 문제](#성능-문제)
 
 ---
 
@@ -194,6 +195,84 @@ cd ios && pod install && cd ..
 
 ---
 
+## API 서비스 문제
+
+### API 모드가 변경되지 않음
+
+**증상**: `.env` 파일에서 API_MODE를 변경해도 적용되지 않음
+
+**해결 방법**:
+1. 환경 변수 확인:
+   ```bash
+   echo $EXPO_PUBLIC_API_MODE
+   ```
+
+2. Metro 캐시 클리어 및 재시작:
+   ```bash
+   # Metro 종료 (Ctrl+C)
+   npx expo start -c
+   ```
+
+3. 앱 완전 재설치:
+   ```bash
+   # Android
+   adb uninstall com.realpinkrabbit.smartroadreflector
+   npx expo run:android
+   
+   # iOS
+   # 시뮬레이터에서 앱 삭제 후
+   npx expo run:ios
+   ```
+
+### Mock 모드에서 로그인 실패
+
+**증상**: 올바른 계정 정보를 입력해도 로그인 실패
+
+**해결 방법**:
+1. 테스트 계정 사용:
+   - ID: `testuser`
+   - PW: `password123`
+
+2. AsyncStorage 초기화:
+   ```javascript
+   // 개발자 도구에서 실행
+   import AsyncStorage from '@react-native-async-storage/async-storage';
+   await AsyncStorage.clear();
+   ```
+
+3. 새로 회원가입 후 로그인
+
+### API 서비스 타입 오류
+
+**증상**: TypeScript 타입 오류 발생
+
+**해결 방법**:
+1. 타입 import 확인:
+   ```typescript
+   import { apiService } from '@/services/api';
+   import { User, LoginRequest } from '@/types/api.types';
+   ```
+
+2. tsconfig.json 경로 확인:
+   ```json
+   {
+     "paths": {
+       "@/*": ["./*"]
+     }
+   }
+   ```
+
+### 환경설정이 저장되지 않음
+
+**증상**: 설정 변경 후 앱 재시작 시 초기화됨
+
+**해결 방법**:
+1. API 모드 확인 (콘솔 로그)
+2. Mock 모드에서 AsyncStorage 권한 확인
+3. API 모드에서 네트워크 연결 확인
+
+---
+
 ## 개발 환경 문제
 
 ### Metro 번들러 오류
@@ -287,6 +366,44 @@ Error: Error: Activity not started, unable to resolve Intent { act=android.inten
 
 ---
 
+## API 관련 디버깅
+
+### 현재 API 모드 확인
+
+앱 시작 시 콘솔 로그 확인:
+- `🔧 API Mode: dummy`
+- `🔧 API Mode: mock`
+- `🔧 API Mode: api`
+- `🌐 API Base URL: https://...` (api 모드)
+
+### API 호출 로그 확인
+
+각 API 서비스는 호출 시 로그를 출력합니다:
+- `[DummyAPI] login 호출됨: testuser`
+- `[MockAPI] login 시도: testuser`
+- `[RealAPI] 로그인 실패: Error...`
+
+### Mock 데이터 확인
+
+```javascript
+// React Native Debugger 콘솔에서
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// 모든 키 확인
+const keys = await AsyncStorage.getAllKeys();
+console.log('Storage keys:', keys);
+
+// Mock 사용자 목록 확인
+const users = await AsyncStorage.getItem('@mock_users');
+console.log('Mock users:', JSON.parse(users));
+
+// 현재 사용자 확인
+const currentUser = await AsyncStorage.getItem('@mock_current_user');
+console.log('Current user:', JSON.parse(currentUser));
+```
+
+---
+
 ## 추가 도움말
 
 ### 로그 확인
@@ -324,6 +441,10 @@ npx expo whoami
 
 # 프로젝트 진단
 npx expo doctor
+
+# 환경 변수 확인
+echo $EXPO_PUBLIC_API_MODE
+echo $EXPO_PUBLIC_NAVER_MAP_CLIENT_ID
 ```
 
 ---
@@ -335,6 +456,7 @@ npx expo doctor
    - 오류 메시지 전문
    - 재현 단계
    - 환경 정보 (OS, Node 버전 등)
+   - 현재 API 모드
 3. **커뮤니티 도움**: 
    - [Expo Discord](https://chat.expo.dev/)
    - [React Native 한국 커뮤니티](https://www.facebook.com/groups/react.native.ko/)
