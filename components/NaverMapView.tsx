@@ -1,3 +1,4 @@
+import { apiConfig } from '@/config/api.config';
 import { Colors } from '@/constants/Colors';
 import { NaverMapMarkerOverlay, NaverMapView } from '@mj-studio/react-native-naver-map';
 import * as Location from 'expo-location';
@@ -32,6 +33,15 @@ interface LocationData {
   heading: number | null; // degrees (0-360)
 }
 
+interface VehicleData {
+  id: string;
+  latitude: number;
+  longitude: number;
+  speed: number; // m/s
+  heading: number; // degrees (0-360)
+  timestamp: string;
+}
+
 export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [location, setLocation] = useState(DEFAULT_LOCATION);
@@ -49,8 +59,56 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
     tilt: 0,
     bearing: 0,
   });
+  const [nearbyVehicles, setNearbyVehicles] = useState<VehicleData[]>([]);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
+  const vehicleUpdateInterval = useRef<number | null>(null);
   const mapRef = useRef<any>(null);
+
+  // Mock 차량 데이터 생성 함수
+  const generateMockVehicles = (centerLat: number, centerLng: number): VehicleData[] => {
+    const vehicles: VehicleData[] = [];
+    const vehicleCount = 5; // 5대의 차량 시뮬레이션
+    
+    for (let i = 0; i < vehicleCount; i++) {
+      // 중심점에서 약 100-500m 반경 내 랜덤 위치
+      const distance = (Math.random() * 400 + 100) / 111000; // degrees
+      const angle = Math.random() * Math.PI * 2;
+      
+      vehicles.push({
+        id: `vehicle_${i}`,
+        latitude: centerLat + distance * Math.cos(angle),
+        longitude: centerLng + distance * Math.sin(angle),
+        speed: Math.random() * 16.67 + 5.56, // 20-60 km/h (5.56-16.67 m/s)
+        heading: Math.random() * 360,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    
+    return vehicles;
+  };
+
+  // Mock 차량 데이터 업데이트 함수
+  const updateMockVehicles = () => {
+    setNearbyVehicles(prevVehicles => {
+      return prevVehicles.map(vehicle => {
+        // 각 차량을 조금씩 이동
+        const speedInDegrees = vehicle.speed / 111000; // m/s to degrees/s
+        const headingRad = (vehicle.heading * Math.PI) / 180;
+        
+        // 방향을 약간 변경 (±10도)
+        const newHeading = (vehicle.heading + (Math.random() - 0.5) * 20 + 360) % 360;
+        
+        return {
+          ...vehicle,
+          latitude: vehicle.latitude + speedInDegrees * Math.sin(headingRad),
+          longitude: vehicle.longitude + speedInDegrees * Math.cos(headingRad),
+          heading: newHeading,
+          speed: Math.max(5.56, Math.min(16.67, vehicle.speed + (Math.random() - 0.5) * 2)), // 속도 변화
+          timestamp: new Date().toISOString(),
+        };
+      });
+    });
+  };
 
   // 위치 권한 요청 및 초기 위치 가져오기
   useEffect(() => {
@@ -141,6 +199,26 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
     };
   }, []);
 
+  // Mock 모드에서 차량 데이터 시뮬레이션
+  useEffect(() => {
+    if (apiConfig.mode === 'mock' && !isLoading) {
+      // 초기 차량 데이터 생성 (현재 위치 근처)
+      const initialVehicles = generateMockVehicles(37.338861, 126.734563);
+      setNearbyVehicles(initialVehicles);
+      
+      // 1초마다 차량 위치 업데이트
+      vehicleUpdateInterval.current = setInterval(() => {
+        updateMockVehicles();
+      }, 1000);
+    }
+    
+    return () => {
+      if (vehicleUpdateInterval.current) {
+        clearInterval(vehicleUpdateInterval.current);
+      }
+    };
+  }, [isLoading]);
+
   // 속도를 km/h로 변환
   const getSpeedInKmh = (speedInMs: number | null): string => {
     if (speedInMs === null || speedInMs < 0) return '0';
@@ -197,6 +275,26 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
             />
           </View>
         </NaverMapMarkerOverlay>
+        
+        {/* Mock 차량 마커들 */}
+        {apiConfig.mode === 'mock' && nearbyVehicles.map((vehicle) => (
+          <NaverMapMarkerOverlay
+            key={vehicle.id}
+            latitude={vehicle.latitude}
+            longitude={vehicle.longitude}
+            width={25}
+            height={25}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.vehicleMarkerContainer}>
+              <Image
+                source={require('@/assets/images/icon_car_2.png')}
+                style={styles.vehicleIcon}
+                resizeMode="contain"
+              />
+            </View>
+          </NaverMapMarkerOverlay>
+        ))}
       </NaverMapView>
 
       {/* 속도 및 방향 정보 표시 */}
@@ -209,6 +307,12 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
           <Text style={styles.infoLabel}>방향</Text>
           <Text style={styles.infoValue}>{getCompassDirection(locationData.heading)}</Text>
         </View>
+        {apiConfig.mode === 'mock' && (
+          <View style={styles.infoBox}>
+            <Text style={styles.infoLabel}>차량</Text>
+            <Text style={styles.infoValue}>{nearbyVehicles.length}대</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -246,6 +350,19 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     tintColor: Colors.primary.darkRed, // 진한 빨강색으로 변경
+  },
+  
+  // 차량 마커 스타일
+  vehicleMarkerContainer: {
+    width: 25,
+    height: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vehicleIcon: {
+    width: 25,
+    height: 25,
+    tintColor: Colors.primary.darkBlue, // 진한 파란색
   },
   
   // 정보 표시
