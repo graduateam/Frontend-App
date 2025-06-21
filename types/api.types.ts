@@ -127,6 +127,36 @@ export interface GetNearbyPeopleResponse {
   message?: string;
 }
 
+// 충돌 경고 관련 타입
+export interface CollisionWarning {
+  objectId: string; // 충돌 예측 대상 객체 ID
+  objectType: 'vehicle' | 'person'; // 객체 타입
+  direction: number; // 다가오는 방향 (0-360도, 0=북쪽)
+  relativeDirection: 'front' | 'front-left' | 'front-right' | 'left' | 'right' | 'rear-left' | 'rear' | 'rear-right'; // 상대 방향
+  speed: number; // 속도 (m/s)
+  speed_kph: number; // 속도 (km/h)
+  distance: number; // 거리 (미터)
+  ttc: number; // Time to Collision (초)
+  severity: 'low' | 'medium' | 'high' | 'critical'; // 위험도
+  timestamp: string; // ISO 8601 형식
+}
+
+export interface GetCollisionWarningRequest {
+  latitude: number;
+  longitude: number;
+  heading: number; // 운전자의 현재 방향
+  speed: number; // 운전자의 현재 속도
+}
+
+export interface GetCollisionWarningResponse {
+  success: boolean;
+  data?: {
+    warning: CollisionWarning | null;
+    hasWarning: boolean;
+  };
+  message?: string;
+}
+
 // API 서비스 인터페이스
 export interface IApiService {
   // 인증 관련
@@ -148,4 +178,7 @@ export interface IApiService {
   
   // 사람 정보 관련
   getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse>;
+  
+  // 충돌 경고 관련
+  getCollisionWarning(request: GetCollisionWarningRequest): Promise<GetCollisionWarningResponse>;
 }

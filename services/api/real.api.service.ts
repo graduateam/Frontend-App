@@ -5,6 +5,8 @@ import {
   ChangePasswordResponse,
   DeleteAccountRequest,
   DeleteAccountResponse,
+  GetCollisionWarningRequest,
+  GetCollisionWarningResponse,
   GetNearbyPeopleRequest,
   GetNearbyPeopleResponse,
   GetNearbyVehiclesRequest,
@@ -299,6 +301,26 @@ export class RealApiService extends BaseApiService {
       return {
         success: false,
         message: '주변 사람 정보를 가져오는데 실패했습니다.',
+      };
+    }
+  }
+  
+  async getCollisionWarning(request: GetCollisionWarningRequest): Promise<GetCollisionWarningResponse> {
+    try {
+      const data = await this.fetchWithAuth('/collision/warning', {
+        method: 'POST',
+        body: JSON.stringify(request),
+      });
+
+      return {
+        success: true,
+        data: data.data,
+      };
+    } catch (error) {
+      console.error('[RealAPI] 충돌 경고 조회 실패:', error);
+      return {
+        success: false,
+        message: '충돌 경고 정보를 가져오는데 실패했습니다.',
       };
     }
   }

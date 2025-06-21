@@ -4,6 +4,8 @@ import {
   ChangePasswordResponse,
   DeleteAccountRequest,
   DeleteAccountResponse,
+  GetCollisionWarningRequest,
+  GetCollisionWarningResponse,
   GetNearbyPeopleRequest,
   GetNearbyPeopleResponse,
   GetNearbyVehiclesRequest,
@@ -109,6 +111,19 @@ export class DummyApiService extends BaseApiService {
       data: {
         people: [],
         timestamp: new Date().toISOString(),
+      },
+    };
+  }
+  
+  async getCollisionWarning(request: GetCollisionWarningRequest): Promise<GetCollisionWarningResponse> {
+    console.log('[DummyAPI] getCollisionWarning 호출됨:', request);
+    await this.delay(100);
+    
+    return {
+      success: true,
+      data: {
+        warning: null,
+        hasWarning: false,
       },
     };
   }

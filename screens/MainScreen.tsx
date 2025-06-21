@@ -1,10 +1,13 @@
+import CollisionWarningComponent from '@/components/CollisionWarning';
 import DeleteAccountModal from '@/components/DeleteAccountModal';
 import MyPageSidebar from '@/components/MyPageSidebar';
 import NaverMapView from '@/components/NaverMapView';
 import PasswordChangeModal from '@/components/PasswordChangeModal';
 import SettingsSidebar from '@/components/SettingsSidebar';
 import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
-import React, { useState } from 'react';
+import { apiService } from '@/services/api';
+import { CollisionWarning } from '@/types/api.types';
+import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -26,6 +29,52 @@ export default function MainScreen() {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isPasswordChangeVisible, setIsPasswordChangeVisible] = useState(false);
   const [isDeleteAccountVisible, setIsDeleteAccountVisible] = useState(false);
+  
+  // 충돌 경고 관련 state
+  const [collisionWarning, setCollisionWarning] = useState<CollisionWarning | null>(null);
+  const [showWarning, setShowWarning] = useState(false);
+
+  // Mock 모드에서 테스트용 충돌 경고 가져오기
+  const fetchTestCollisionWarning = async () => {
+    try {
+      console.log('충돌 경고 테스트 요청');
+      const response = await apiService.getCollisionWarning({
+        latitude: 37.5666102,
+        longitude: 126.9783881,
+        heading: 0,
+        speed: 10,
+      });
+
+      if (response.success && response.data?.hasWarning && response.data.warning) {
+        setCollisionWarning(response.data.warning);
+        setShowWarning(true);
+        
+        // 5초 후 자동으로 경고 숨기기
+        setTimeout(() => {
+          setShowWarning(false);
+        }, 5000);
+      }
+    } catch (error) {
+      console.error('충돌 경고 조회 실패:', error);
+    }
+  };
+
+  // 키보드 이벤트 리스너 (웹에서 테스트용)
+  useEffect(() => {
+    const handleKeyPress = (event: any) => {
+      // 'W' 키를 누르면 충돌 경고 테스트
+      if (event.key === 'w' || event.key === 'W') {
+        fetchTestCollisionWarning();
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      window.addEventListener('keypress', handleKeyPress);
+      return () => {
+        window.removeEventListener('keypress', handleKeyPress);
+      };
+    }
+  }, []);
 
   const handleMyPage = () => {
     console.log('마이페이지 클릭');
@@ -58,7 +107,11 @@ export default function MainScreen() {
         </View>
 
         {/* 하단 도로 배경 영역 */}
-        <View style={styles.roadSection}>
+        <TouchableOpacity 
+          style={styles.roadSection}
+          activeOpacity={1}
+          onPress={fetchTestCollisionWarning}
+        >
           {/* 배경 및 하단 어두운 영역 */}
           <View style={styles.backgroundContainer}>
             {/* 하단 어두운 네모 영역 */}
@@ -76,8 +129,21 @@ export default function MainScreen() {
             style={styles.rightWall}
             resizeMode="contain"
           />
-        </View>
+          
+          {/* Mock 모드 테스트 안내 */}
+          {__DEV__ && (
+            <View style={styles.testHint}>
+              <Text style={styles.testHintText}>이 영역을 터치하면 충돌 경고 테스트</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </ScrollView>
+
+      {/* 충돌 경고 표시 */}
+      <CollisionWarningComponent 
+        warning={collisionWarning}
+        visible={showWarning}
+      />
 
       {/* 하단 네비게이션 버튼 (고정) */}
       <View style={styles.bottomNavigation}>
@@ -241,5 +307,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Pretendard-Regular',
     color: WHITE,
+  },
+  
+  // 테스트 힌트
+  testHint: {
+    position: 'absolute',
+    top: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  testHintText: {
+    fontSize: 12,
+    fontFamily: 'Pretendard-Regular',
+    color: WHITE,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
 });
