@@ -9,6 +9,22 @@ export const Colors = {
     primary: '#E35501', // Traffic Orange
   },
 
+  // Primary Colors - 주요 원색
+  primary: {
+    red: '#FF0000',        // 순수 빨강
+    darkRed: '#CC0000',    // 진한 빨강
+    blue: '#0000FF',       // 순수 파랑
+    darkBlue: '#0000CC',   // 진한 파랑
+    green: '#00FF00',      // 순수 초록
+    darkGreen: '#00CC00',  // 진한 초록
+    yellow: '#FFFF00',     // 순수 노랑
+    darkYellow: '#CCCC00', // 진한 노랑
+    purple: '#FF00FF',     // 순수 보라
+    darkPurple: '#CC00CC', // 진한 보라
+    cyan: '#00FFFF',       // 순수 청록
+    darkCyan: '#00CCCC',   // 진한 청록
+  },
+
   // Ambient Colors - 주변 색상 변형
   ambient: {
     // Saturated (채도 높음)

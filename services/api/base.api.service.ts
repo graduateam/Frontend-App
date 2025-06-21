@@ -1,16 +1,20 @@
 // services/api/base.api.service.ts
 import {
-    ChangePasswordRequest,
-    ChangePasswordResponse,
-    DeleteAccountRequest,
-    DeleteAccountResponse,
-    IApiService,
-    LoginRequest,
-    LoginResponse,
-    RegisterRequest,
-    RegisterResponse,
-    Settings,
-    User
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  DeleteAccountRequest,
+  DeleteAccountResponse,
+  GetNearbyPeopleRequest,
+  GetNearbyPeopleResponse,
+  GetNearbyVehiclesRequest,
+  GetNearbyVehiclesResponse,
+  IApiService,
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  RegisterResponse,
+  Settings,
+  User
 } from '@/types/api.types';
 
 export abstract class BaseApiService implements IApiService {
@@ -25,6 +29,8 @@ export abstract class BaseApiService implements IApiService {
   abstract getCurrentUser(): Promise<User | null>;
   abstract getSettings(): Promise<Settings>;
   abstract updateSettings(settings: Settings): Promise<{ success: boolean }>;
+  abstract getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse>;
+  abstract getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse>;
 
   // 공통 유틸리티 메서드
   protected delay(ms: number): Promise<void> {

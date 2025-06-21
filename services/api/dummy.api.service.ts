@@ -1,15 +1,19 @@
 // services/api/dummy.api.service.ts
 import {
-    ChangePasswordRequest,
-    ChangePasswordResponse,
-    DeleteAccountRequest,
-    DeleteAccountResponse,
-    LoginRequest,
-    LoginResponse,
-    RegisterRequest,
-    RegisterResponse,
-    Settings,
-    User
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  DeleteAccountRequest,
+  DeleteAccountResponse,
+  GetNearbyPeopleRequest,
+  GetNearbyPeopleResponse,
+  GetNearbyVehiclesRequest,
+  GetNearbyVehiclesResponse,
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  RegisterResponse,
+  Settings,
+  User
 } from '@/types/api.types';
 import { BaseApiService } from './base.api.service';
 
@@ -81,5 +85,31 @@ export class DummyApiService extends BaseApiService {
   async updateSettings(settings: Settings): Promise<{ success: boolean }> {
     console.log('[DummyAPI] updateSettings 호출됨:', settings);
     return { success: true };
+  }
+
+  async getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse> {
+    console.log('[DummyAPI] getNearbyVehicles 호출됨:', request);
+    await this.delay(100);
+    
+    return {
+      success: true,
+      data: {
+        vehicles: [],
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
+  async getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse> {
+    console.log('[DummyAPI] getNearbyPeople 호출됨:', request);
+    await this.delay(100);
+    
+    return {
+      success: true,
+      data: {
+        people: [],
+        timestamp: new Date().toISOString(),
+      },
+    };
   }
 }
