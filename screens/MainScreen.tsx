@@ -4,10 +4,11 @@ import MyPageSidebar from '@/components/MyPageSidebar';
 import NaverMapView from '@/components/NaverMapView';
 import PasswordChangeModal from '@/components/PasswordChangeModal';
 import SettingsSidebar from '@/components/SettingsSidebar';
+import { apiConfig } from '@/config/api.config';
 import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
 import { apiService } from '@/services/api';
 import { CollisionWarning } from '@/types/api.types';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -33,9 +34,16 @@ export default function MainScreen() {
   // 충돌 경고 관련 state
   const [collisionWarning, setCollisionWarning] = useState<CollisionWarning | null>(null);
   const [showWarning, setShowWarning] = useState(false);
+  const warningTimerRef = useRef<number | null>(null);
+  
+  // API 모드 확인 (mock 모드에서만 테스트 활성화)
+  const isMockMode = apiConfig.mode === 'mock';
 
   // Mock 모드에서 테스트용 충돌 경고 가져오기
   const fetchTestCollisionWarning = async () => {
+    // mock 모드가 아니면 실행하지 않음
+    if (!isMockMode) return;
+    
     try {
       console.log('충돌 경고 테스트 요청');
       const response = await apiService.getCollisionWarning({
@@ -46,12 +54,19 @@ export default function MainScreen() {
       });
 
       if (response.success && response.data?.hasWarning && response.data.warning) {
+        // 이전 타이머가 있으면 취소
+        if (warningTimerRef.current) {
+          clearTimeout(warningTimerRef.current);
+          warningTimerRef.current = null;
+        }
+        
         setCollisionWarning(response.data.warning);
         setShowWarning(true);
         
-        // 5초 후 자동으로 경고 숨기기
-        setTimeout(() => {
+        // 새로운 5초 타이머 설정
+        warningTimerRef.current = setTimeout(() => {
           setShowWarning(false);
+          warningTimerRef.current = null;
         }, 5000);
       }
     } catch (error) {
@@ -59,11 +74,20 @@ export default function MainScreen() {
     }
   };
 
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+    };
+  }, []);
+
   // 키보드 이벤트 리스너 (웹에서 테스트용)
   useEffect(() => {
     const handleKeyPress = (event: any) => {
-      // 'W' 키를 누르면 충돌 경고 테스트
-      if (event.key === 'w' || event.key === 'W') {
+      // 'W' 키를 누르면 충돌 경고 테스트 (mock 모드에서만)
+      if ((event.key === 'w' || event.key === 'W') && isMockMode) {
         fetchTestCollisionWarning();
       }
     };
@@ -74,7 +98,7 @@ export default function MainScreen() {
         window.removeEventListener('keypress', handleKeyPress);
       };
     }
-  }, []);
+  }, [isMockMode]);
 
   const handleMyPage = () => {
     console.log('마이페이지 클릭');
@@ -90,6 +114,36 @@ export default function MainScreen() {
     console.log('환경설정 클릭');
     setIsSettingsVisible(true);
   };
+  
+  // 도로 섹션 내용 컴포넌트
+  const RoadSectionContent = () => (
+    <>
+      {/* 배경 및 하단 어두운 영역 */}
+      <View style={styles.backgroundContainer}>
+        {/* 하단 어두운 네모 영역 */}
+        <View style={styles.darkArea} />
+      </View>
+
+      {/* 양측 벽 이미지 */}
+      <Image
+        source={require('@/assets/images/image_wall_1.png')}
+        style={styles.leftWall}
+        resizeMode="contain"
+      />
+      <Image
+        source={require('@/assets/images/image_wall_2.png')}
+        style={styles.rightWall}
+        resizeMode="contain"
+      />
+      
+      {/* Mock 모드 테스트 안내 (개발 모드 + mock 모드일 때만 표시) */}
+      {__DEV__ && isMockMode && (
+        <View style={styles.testHint}>
+          <Text style={styles.testHintText}>이 영역을 터치하면 충돌 경고 테스트</Text>
+        </View>
+      )}
+    </>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -107,36 +161,19 @@ export default function MainScreen() {
         </View>
 
         {/* 하단 도로 배경 영역 */}
-        <TouchableOpacity 
-          style={styles.roadSection}
-          activeOpacity={1}
-          onPress={fetchTestCollisionWarning}
-        >
-          {/* 배경 및 하단 어두운 영역 */}
-          <View style={styles.backgroundContainer}>
-            {/* 하단 어두운 네모 영역 */}
-            <View style={styles.darkArea} />
+        {isMockMode ? (
+          <TouchableOpacity 
+            style={styles.roadSection}
+            activeOpacity={1}
+            onPress={fetchTestCollisionWarning}
+          >
+            <RoadSectionContent />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.roadSection}>
+            <RoadSectionContent />
           </View>
-
-          {/* 양측 벽 이미지 */}
-          <Image
-            source={require('@/assets/images/image_wall_1.png')}
-            style={styles.leftWall}
-            resizeMode="contain"
-          />
-          <Image
-            source={require('@/assets/images/image_wall_2.png')}
-            style={styles.rightWall}
-            resizeMode="contain"
-          />
-          
-          {/* Mock 모드 테스트 안내 */}
-          {__DEV__ && (
-            <View style={styles.testHint}>
-              <Text style={styles.testHintText}>이 영역을 터치하면 충돌 경고 테스트</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* 충돌 경고 표시 */}

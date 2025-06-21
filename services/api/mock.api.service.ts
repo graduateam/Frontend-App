@@ -479,7 +479,7 @@ export class MockApiService extends BaseApiService {
     await this.delay(200);
 
     // 테스트를 위해 임의로 경고 생성 (실제로는 서버에서 계산)
-    const shouldShowWarning = Math.random() > 0.3; // 70% 확률로 경고 표시
+    const shouldShowWarning = Math.random() > 0.1; // 90% 확률로 경고 표시 (테스트 편의성 향상)
     
     if (!shouldShowWarning) {
       return {
@@ -515,8 +515,9 @@ export class MockApiService extends BaseApiService {
     const relativeDirection = directions[Math.floor(Math.random() * directions.length)];
     
     // 거리와 TTC 계산 (mock)
-    const distance = Math.random() * 100 + 10; // 10-110m
-    const ttc = distance / targetObject.speed; // 간단한 계산
+    const distance = Math.random() * 50 + 20; // 20-70m (더 가까운 거리로 조정)
+    const relativeSpeed = targetObject.speed + request.speed; // 상대속도 계산
+    const ttc = distance / relativeSpeed; // 간단한 계산
     
     // 위험도 결정
     let severity: 'low' | 'medium' | 'high' | 'critical';
