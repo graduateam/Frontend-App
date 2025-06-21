@@ -9,8 +9,9 @@
 3. [런타임 오류](#런타임-오류)
 4. [네이버 지도 문제](#네이버-지도-문제)
 5. [API 서비스 문제](#api-서비스-문제)
-6. [개발 환경 문제](#개발-환경-문제)
-7. [성능 문제](#성능-문제)
+6. [실시간 위치 추적 문제](#실시간-위치-추적-문제)
+7. [개발 환경 문제](#개발-환경-문제)
+8. [성능 문제](#성능-문제)
 
 ---
 
@@ -273,6 +274,44 @@ cd ios && pod install && cd ..
 
 ---
 
+## 실시간 위치 추적 문제
+
+### 현재 위치가 표시되지 않음
+
+**증상**: 지도에 빨간 삼각형(현재 위치)이 나타나지 않음
+
+**해결 방법**:
+1. 위치 권한 확인
+   - 설정 > 앱 > 스마트 도로반사경 > 권한 > 위치 허용
+2. GPS가 켜져 있는지 확인
+3. 실내에서는 GPS 신호가 약할 수 있으므로 실외에서 테스트
+
+### 주변 차량/보행자가 표시되지 않음
+
+**증상**: Mock 모드인데 차량이나 보행자가 표시되지 않음
+
+**해결 방법**:
+1. API 모드 확인 (콘솔에 `🔧 API Mode: mock` 출력 확인)
+2. 환경변수 확인:
+   ```bash
+   echo $EXPO_PUBLIC_API_MODE
+   ```
+3. 앱 완전 재시작:
+   ```bash
+   npx expo start -c
+   ```
+
+### 속도가 0 km/h로 표시됨
+
+**증상**: 이동 중인데도 속도가 계속 0으로 표시
+
+**해결 방법**:
+- 실제 이동 속도가 느릴 경우 GPS가 감지하지 못할 수 있음
+- 차량이나 자전거로 이동하면서 테스트
+- 에뮬레이터에서는 속도가 정확히 측정되지 않을 수 있음
+
+---
+
 ## 개발 환경 문제
 
 ### Metro 번들러 오류
@@ -352,6 +391,24 @@ Error: Error: Activity not started, unable to resolve Intent { act=android.inten
 2. **이미지 최적화**: 큰 이미지 파일 압축
 3. **리렌더링 최소화**: React.memo 사용
 4. **콘솔 로그 제거**: 프로덕션에서 console.log 제거
+5. **위치 업데이트 주기 조정**: 
+   ```typescript
+   // NaverMapView.tsx에서 업데이트 주기 변경
+   timeInterval: 2000, // 2초로 변경
+   distanceInterval: 5, // 5미터로 변경
+   ```
+
+### 배터리 소모가 심함
+
+**원인**: GPS와 1초마다 API 호출로 인한 배터리 소모
+
+**해결 방법**:
+1. 위치 정확도 낮추기:
+   ```typescript
+   accuracy: Location.Accuracy.Balanced, // High 대신 Balanced 사용
+   ```
+2. API 호출 주기 늘리기 (1초 → 3-5초)
+3. 백그라운드에서 위치 추적 중지
 
 ### 메모리 누수
 
@@ -381,6 +438,8 @@ Error: Error: Activity not started, unable to resolve Intent { act=android.inten
 각 API 서비스는 호출 시 로그를 출력합니다:
 - `[DummyAPI] login 호출됨: testuser`
 - `[MockAPI] login 시도: testuser`
+- `[MockAPI] getNearbyVehicles 시도: {latitude: 37.5666102, longitude: 126.9783881}`
+- `[MockAPI] getNearbyPeople 시도: {latitude: 37.5666102, longitude: 126.9783881}`
 - `[RealAPI] 로그인 실패: Error...`
 
 ### Mock 데이터 확인
@@ -445,6 +504,14 @@ npx expo doctor
 # 환경 변수 확인
 echo $EXPO_PUBLIC_API_MODE
 echo $EXPO_PUBLIC_NAVER_MAP_CLIENT_ID
+
+# 위치 권한 상태 확인 (Android)
+adb shell pm list permissions -g | grep location
+
+# Mock 데이터 초기화
+# React Native Debugger 콘솔에서:
+import AsyncStorage from '@react-native-async-storage/async-storage';
+await AsyncStorage.clear();
 ```
 
 ---
@@ -457,9 +524,12 @@ echo $EXPO_PUBLIC_NAVER_MAP_CLIENT_ID
    - 재현 단계
    - 환경 정보 (OS, Node 버전 등)
    - 현재 API 모드
+   - 위치 권한 상태
+   - 디바이스 정보 (실제 기기/에뮬레이터)
 3. **커뮤니티 도움**: 
    - [Expo Discord](https://chat.expo.dev/)
    - [React Native 한국 커뮤니티](https://www.facebook.com/groups/react.native.ko/)
+   - [@mj-studio/react-native-naver-map GitHub](https://github.com/mj-studio-library/react-native-naver-map)
 
 ---
 

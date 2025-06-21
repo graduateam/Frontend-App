@@ -6,10 +6,13 @@
 
 ### 주요 기능
 - 🗺️ **실시간 지도**: 네이버 지도 API를 활용한 현재 위치 표시
+- 📍 **실시간 위치 추적**: GPS 기반 실시간 위치, 속도, 방향 표시
+- 🚗 **주변 차량 표시**: 반경 500m 내 차량 실시간 추적
+- 🚶 **주변 보행자 표시**: 반경 500m 내 보행자 실시간 추적
 - 🚦 **도로 정보**: 도로반사경 위치 및 위험 구간 표시 (예정)
 - 👤 **사용자 관리**: 회원가입, 로그인, 프로필 관리
 - ⚙️ **환경설정**: 알림, 음성 안내 등 개인화 설정
-- 📍 **위치 기반 서비스**: GPS를 활용한 실시간 위치 추적 (예정)
+- 📡 **다중 API 모드**: 개발 단계별 API 모드 지원 (Dummy/Mock/Real)
 
 ### 기술 스택
 - **Frontend**: React Native 0.79.2 + Expo SDK 53
@@ -363,6 +366,20 @@ await apiService.updateSettings({
   reducedVisualEffects: false,
   startWithOthers: true
 });
+
+// 주변 차량 조회
+const vehicles = await apiService.getNearbyVehicles({
+  latitude: 37.5666102,
+  longitude: 126.9783881,
+  radius: 500 // 500m 반경
+});
+
+// 주변 보행자 조회
+const people = await apiService.getNearbyPeople({
+  latitude: 37.5666102,
+  longitude: 126.9783881,
+  radius: 500
+});
 ```
 
 ### API 메서드 목록
@@ -380,6 +397,10 @@ await apiService.updateSettings({
 #### 설정 관련
 - `getSettings()`: 사용자 설정 조회
 - `updateSettings(settings)`: 사용자 설정 업데이트
+
+#### 위치 기반 정보
+- `getNearbyVehicles(request)`: 주변 차량 정보 조회
+- `getNearbyPeople(request)`: 주변 보행자 정보 조회
 
 ### 외부 API
 
@@ -451,19 +472,19 @@ git checkout -b feature/new-feature
 ### 구현 완료 ✅
 - 반응형 UI/UX
 - 네이버 지도 연동
+- 실시간 위치 추적 (GPS)
+- 주변 차량/보행자 표시
 - 사용자 인증 (로그인/회원가입)
 - 마이페이지 기능
 - 환경설정 저장/불러오기
 - API 서비스 3단계 모드
 
 ### 진행 중 🚧
-- 도로반사경 데이터 표시
-- 실시간 위치 추적
+- 백엔드 서버 구축
+- 위험 알림
 
 ### 예정 📅
-- 백엔드 서버 구축
-- 위험 구간 알림
-- 음성 안내
+- 음성 안내 기능
 - 팝업 기능
 
 ## 🐛 알려진 이슈

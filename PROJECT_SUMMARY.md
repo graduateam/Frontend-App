@@ -46,7 +46,7 @@ app/           # 라우팅 (Expo Router)
 
 screens/       # 화면 컴포넌트 (API 연동)
 components/    # 재사용 컴포넌트
-├── NaverMapView.tsx  # 네이버 지도
+├── NaverMapView.tsx  # 네이버 지도 (위치추적, 차량/보행자 표시)
 ├── *Sidebar.tsx      # 사이드바들 (API 연동)
 └── *Modal.tsx        # 모달들 (API 연동)
 
@@ -100,6 +100,20 @@ const result = await apiService.login({
 
 // 사용자 정보
 const user = await apiService.getCurrentUser();
+
+// 주변 차량 조회
+const vehiclesResponse = await apiService.getNearbyVehicles({
+  latitude: 37.5666102,
+  longitude: 126.9783881,
+  radius: 500
+});
+
+// 주변 보행자 조회
+const peopleResponse = await apiService.getNearbyPeople({
+  latitude: 37.5666102,
+  longitude: 126.9783881,
+  radius: 500
+});
 ```
 
 ## 핵심 기능
@@ -115,6 +129,28 @@ const user = await apiService.getCurrentUser();
 3. **환경설정** ✅
    - API 또는 AsyncStorage 저장
    - 진동/음성/시각효과 설정
+
+4. **실시간 위치 추적** ✅
+   - GPS 기반 실시간 위치 업데이트
+   - 속도 및 방향 표시
+   - 초기 위치로 자동 중심 이동 (1회)
+   
+5. **주변 객체 표시** ✅
+   - 차량: 파란색 아이콘 (반경 500m)
+   - 보행자: 노란색 아이콘 (반경 500m)
+   - Mock 모드에서 시뮬레이션 지원
+
+## Mock 모드 테스트
+
+1. `.env`에서 `EXPO_PUBLIC_API_MODE=mock` 설정
+2. 앱 재시작
+3. 테스트 계정: `testuser` / `password123`
+4. 또는 회원가입 후 로그인
+5. 지도에서 확인 가능한 기능:
+   - 현재 위치 (빨간 삼각형)
+   - 주변 차량 5대 (파란 아이콘)
+   - 주변 보행자 5명 (노란 아이콘)
+   - 실시간 위치 업데이트 (1초마다)
 
 ## 중요 설정
 
@@ -155,6 +191,8 @@ npx expo start -c --dev-client
 ✅ 완료:
 - UI/UX 전체 구현
 - 네이버 지도 연동
+- 실시간 위치 추적
+- 주변 차량/보행자 표시
 - 환경설정 저장
 - 네비게이션 플로우
 - API 서비스 3단계 모드
@@ -162,12 +200,11 @@ npx expo start -c --dev-client
 
 🚧 진행 중:
 - 백엔드 서버 구축
-- 도로반사경 데이터 연동
 
 📅 예정:
-- 실시간 위치 추적
-- 위험 구간 알림
-- 음성 안내
+- 위험 알림
+- 음성 안내 기능
+- 팝업 기능
 
 ## 주의사항
 
@@ -182,6 +219,7 @@ npx expo start -c --dev-client
 - **폰트**: Pretendard
 - **레이아웃**: 상단 지도 + 하단 도로 배경
 - **네비게이션**: 하단 3개 버튼 (마이페이지/팝업/설정)
+- **정보 표시**: 좌측 상단 (속도/방향/차량수/사람수)
 
 ## 문제 해결
 
@@ -197,6 +235,11 @@ npx expo start -c --dev-client
 2. 앱 재시작
 3. 테스트 계정: `testuser` / `password123`
 4. 또는 회원가입 후 로그인
+5. 지도에서 확인 가능한 기능:
+   - 현재 위치 (빨간 삼각형)
+   - 주변 차량 5대 (파란 아이콘)
+   - 주변 보행자 5명 (노란 아이콘)
+   - 실시간 위치 업데이트 (1초마다)
 
 ## 개발 팁
 
@@ -217,5 +260,7 @@ npx expo start -c --dev-client
 - [ ] API 모드 설정했음? (추천: mock)
 - [ ] npm install 완료?
 - [ ] npx expo prebuild 실행?
+- [ ] 위치 권한 허용할 준비됨?
+- [ ] GPS 켜져 있음?
 
 이 정보면 프로젝트를 이해하고 개발을 시작할 수 있습니다.
