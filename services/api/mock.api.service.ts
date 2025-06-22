@@ -4,6 +4,8 @@ import {
   ChangePasswordResponse,
   DeleteAccountRequest,
   DeleteAccountResponse,
+  GetCollisionWarningRequest,
+  GetCollisionWarningResponse,
   GetNearbyPeopleRequest,
   GetNearbyPeopleResponse,
   GetNearbyVehiclesRequest,
@@ -470,5 +472,77 @@ export class MockApiService extends BaseApiService {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
     return R * c;
+  }
+  
+  async getCollisionWarning(request: GetCollisionWarningRequest): Promise<GetCollisionWarningResponse> {
+    console.log('[MockAPI] getCollisionWarning 시도:', request);
+    await this.delay(200);
+
+    // 테스트를 위해 임의로 경고 생성 (실제로는 서버에서 계산)
+    const shouldShowWarning = Math.random() > 0.1; // 90% 확률로 경고 표시 (테스트 편의성 향상)
+    
+    if (!shouldShowWarning) {
+      return {
+        success: true,
+        data: {
+          warning: null,
+          hasWarning: false,
+        },
+      };
+    }
+
+    // Mock 차량이나 사람 중에서 임의로 선택
+    const isVehicle = Math.random() > 0.5;
+    const objects = isVehicle 
+      ? Array.from(this.mockVehicles.values())
+      : Array.from(this.mockPeople.values());
+    
+    if (objects.length === 0) {
+      return {
+        success: true,
+        data: {
+          warning: null,
+          hasWarning: false,
+        },
+      };
+    }
+
+    // 임의의 객체 선택
+    const targetObject = objects[Math.floor(Math.random() * objects.length)];
+    
+    // 상대 방향 계산 (간단한 mock)
+    const directions = ['front', 'front-left', 'front-right', 'left', 'right', 'rear-left', 'rear', 'rear-right'] as const;
+    const relativeDirection = directions[Math.floor(Math.random() * directions.length)];
+    
+    // 거리와 TTC 계산 (mock)
+    const distance = Math.random() * 50 + 20; // 20-70m (더 가까운 거리로 조정)
+    const relativeSpeed = targetObject.speed + request.speed; // 상대속도 계산
+    const ttc = distance / relativeSpeed; // 간단한 계산
+    
+    // 위험도 결정
+    let severity: 'low' | 'medium' | 'high' | 'critical';
+    if (ttc < 2) severity = 'critical';
+    else if (ttc < 4) severity = 'high';
+    else if (ttc < 6) severity = 'medium';
+    else severity = 'low';
+
+    return {
+      success: true,
+      data: {
+        warning: {
+          objectId: targetObject.id,
+          objectType: isVehicle ? 'vehicle' : 'person',
+          direction: targetObject.heading,
+          relativeDirection,
+          speed: targetObject.speed,
+          speed_kph: targetObject.speed_kph,
+          distance,
+          ttc,
+          severity,
+          timestamp: new Date().toISOString(),
+        },
+        hasWarning: true,
+      },
+    };
   }
 }
