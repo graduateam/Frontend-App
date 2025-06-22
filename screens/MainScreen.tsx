@@ -60,12 +60,14 @@ export default function MainScreen() {
           warningTimerRef.current = null;
         }
         
+        // 상태 업데이트
         setCollisionWarning(response.data.warning);
         setShowWarning(true);
         
         // 새로운 5초 타이머 설정
         warningTimerRef.current = setTimeout(() => {
           setShowWarning(false);
+          setCollisionWarning(null);
           warningTimerRef.current = null;
         }, 5000);
       }
@@ -116,34 +118,94 @@ export default function MainScreen() {
   };
   
   // 도로 섹션 내용 컴포넌트
-  const RoadSectionContent = () => (
-    <>
-      {/* 배경 및 하단 어두운 영역 */}
-      <View style={styles.backgroundContainer}>
-        {/* 하단 어두운 네모 영역 */}
-        <View style={styles.darkArea} />
-      </View>
-
-      {/* 양측 벽 이미지 */}
-      <Image
-        source={require('@/assets/images/image_wall_1.png')}
-        style={styles.leftWall}
-        resizeMode="contain"
-      />
-      <Image
-        source={require('@/assets/images/image_wall_2.png')}
-        style={styles.rightWall}
-        resizeMode="contain"
-      />
+  const RoadSectionContent = () => {
+    // 충돌 경고 이미지 위치 결정
+    const getWarningImageStyle = () => {
+      // showWarning 체크 추가
+      if (!showWarning || !collisionWarning) return null;
       
-      {/* Mock 모드 테스트 안내 (개발 모드 + mock 모드일 때만 표시) */}
-      {__DEV__ && isMockMode && (
-        <View style={styles.testHint}>
-          <Text style={styles.testHintText}>이 영역을 터치하면 충돌 경고 테스트</Text>
+      const direction = collisionWarning.relativeDirection;
+      
+      // 후방에서 접근하는 경우 이미지 표시 안함
+      if (direction === 'rear') {
+        return null;
+      }
+      
+      let position: { left?: number; right?: number } = {};
+      
+      // 방향에 따른 위치 설정
+      if (direction === 'front-left' || direction === 'left' || direction === 'rear-left') {
+        // 왼쪽
+        position = { left: width * -0.15 }; // 벽 이미지 너비를 고려
+      } else if (direction === 'front-right' || direction === 'right' || direction === 'rear-right') {
+        // 오른쪽
+        position = { right: width * -0.15 }; // 벽 이미지 너비를 고려
+      } else if (direction === 'front') {
+        // 중앙
+        position = { left: width / 2 - 120}; // 크기에 맞게 중앙 정렬
+      } else {
+        return null;
+      }
+      
+      // 오른쪽에서 접근하는 경우 좌우반전 추가
+      const isRightDirection = direction === 'front-right' || direction === 'right' || direction === 'rear-right';
+      
+      const imageStyle: any = {
+        position: 'absolute' as const,
+        bottom: 150,
+        width: 240,
+        height: 240,
+        zIndex: 10, // 벽 이미지보다 위에 표시
+        transform: isRightDirection ? [{ scaleX: -1 }] : undefined,
+        ...position,
+      };
+      
+      return imageStyle;
+    };
+    
+    const warningImageStyle = getWarningImageStyle();
+    
+    return (
+      <>
+        {/* 배경 및 하단 어두운 영역 */}
+        <View style={styles.backgroundContainer}>
+          {/* 하단 어두운 네모 영역 */}
+          <View style={styles.darkArea} />
         </View>
-      )}
-    </>
-  );
+        
+        {/* 충돌 경고 배경 이미지 (벽 이미지보다 아래 레이어) */}
+        {showWarning && warningImageStyle && collisionWarning && (
+          <Image
+            source={collisionWarning.objectType === 'vehicle' 
+              ? require('@/assets/images/icon_car_3.png')  // 차량 아이콘
+              : require('@/assets/images/icon_walking.png')  // 보행자 아이콘
+            }
+            style={warningImageStyle}
+            resizeMode="contain"
+          />
+        )}
+
+        {/* 양측 벽 이미지 */}
+        <Image
+          source={require('@/assets/images/image_wall_1.png')}
+          style={styles.leftWall}
+          resizeMode="contain"
+        />
+        <Image
+          source={require('@/assets/images/image_wall_2.png')}
+          style={styles.rightWall}
+          resizeMode="contain"
+        />
+        
+        {/* Mock 모드 테스트 안내 (개발 모드 + mock 모드일 때만 표시) */}
+        {__DEV__ && isMockMode && (
+          <View style={styles.testHint}>
+            <Text style={styles.testHintText}>이 영역을 터치하면 충돌 경고 테스트</Text>
+          </View>
+        )}
+      </>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -179,7 +241,7 @@ export default function MainScreen() {
       {/* 충돌 경고 표시 */}
       <CollisionWarningComponent 
         warning={collisionWarning}
-        visible={showWarning}
+        visible={showWarning && !!collisionWarning}
       />
 
       {/* 하단 네비게이션 버튼 (고정) */}
@@ -284,6 +346,7 @@ const styles = StyleSheet.create({
     minHeight: height - MAP_HEIGHT - 100, // 지도 높이와 네비게이션 높이를 뺀 나머지
     backgroundColor: BRAND_COLOR,
     position: 'relative',
+    overflow: 'hidden', // 애니메이션이 영역 밖으로 나가지 않도록
   },
   
   // 배경 및 하단 영역
@@ -307,6 +370,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: width * 0.15,
     height: 250,
+    zIndex: 20, // 충돌 경고 이미지보다 위
   },
   rightWall: {
     position: 'absolute',
@@ -314,6 +378,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: width * 0.15,
     height: 250,
+    zIndex: 20, // 충돌 경고 이미지보다 위
   },
   
   // 하단 네비게이션 (고정)
