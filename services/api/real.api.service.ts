@@ -11,6 +11,8 @@ import {
   GetNearbyPeopleResponse,
   GetNearbyVehiclesRequest,
   GetNearbyVehiclesResponse,
+  LocationUpdateRequest,
+  LocationUpdateResponse,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -125,35 +127,6 @@ export class RealApiService extends BaseApiService {
         token: mockToken,
       },
     };
-
-    /* 원래 코드 - 원상복구 시 위 코드를 제거하고 이 코드를 복원하세요
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        this.currentUser = data.data.user;
-        await this.saveToken(data.data.token);
-        return data;
-      }
-
-      return {
-        success: false,
-        message: data.message || '로그인에 실패했습니다.',
-      };
-    } catch (error) {
-      console.error('[RealAPI] 로그인 실패:', error);
-      return {
-        success: false,
-        message: '서버 연결에 실패했습니다.',
-      };
-    }
-    */
   }
 
   async register(request: RegisterRequest): Promise<RegisterResponse> {
@@ -178,33 +151,6 @@ export class RealApiService extends BaseApiService {
         user: mockUser,
       },
     };
-
-    /* 원래 코드 - 원상복구 시 위 코드를 제거하고 이 코드를 복원하세요
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        return data;
-      }
-
-      return {
-        success: false,
-        message: data.message || '회원가입에 실패했습니다.',
-      };
-    } catch (error) {
-      console.error('[RealAPI] 회원가입 실패:', error);
-      return {
-        success: false,
-        message: '서버 연결에 실패했습니다.',
-      };
-    }
-    */
   }
 
   async logout(): Promise<{ success: boolean }> {
@@ -216,21 +162,6 @@ export class RealApiService extends BaseApiService {
     await AsyncStorage.removeItem(BYPASS_USER_KEY);
     
     return { success: true };
-
-    /* 원래 코드 - 원상복구 시 위 코드를 제거하고 이 코드를 복원하세요
-    try {
-      if (this.authToken) {
-        await this.fetchWithAuth('/auth/logout', { method: 'POST' });
-      }
-    } catch (error) {
-      console.error('[RealAPI] 로그아웃 실패:', error);
-    } finally {
-      this.currentUser = null;
-      await this.removeToken();
-    }
-    
-    return { success: true };
-    */
   }
 
   async changePassword(request: ChangePasswordRequest): Promise<ChangePasswordResponse> {
@@ -244,28 +175,6 @@ export class RealApiService extends BaseApiService {
       success: true,
       message: '비밀번호가 변경되었습니다. (우회 모드)',
     };
-
-    /* 원래 코드 - 원상복구 시 위 코드를 제거하고 이 코드를 복원하세요
-    try {
-      const data = await this.fetchWithAuth('/auth/change-password', {
-        method: 'POST',
-        body: JSON.stringify(request),
-      });
-
-      if (data.success) {
-        // 비밀번호 변경 후 로그아웃
-        await this.logout();
-      }
-
-      return data;
-    } catch (error) {
-      console.error('[RealAPI] 비밀번호 변경 실패:', error);
-      return {
-        success: false,
-        message: '비밀번호 변경에 실패했습니다.',
-      };
-    }
-    */
   }
 
   async deleteAccount(request: DeleteAccountRequest): Promise<DeleteAccountResponse> {
@@ -281,28 +190,6 @@ export class RealApiService extends BaseApiService {
       success: true,
       message: '회원탈퇴가 완료되었습니다. (우회 모드)',
     };
-
-    /* 원래 코드 - 원상복구 시 위 코드를 제거하고 이 코드를 복원하세요
-    try {
-      const data = await this.fetchWithAuth('/auth/delete-account', {
-        method: 'DELETE',
-        body: JSON.stringify(request),
-      });
-
-      if (data.success) {
-        // 회원탈퇴 후 로그아웃
-        await this.logout();
-      }
-
-      return data;
-    } catch (error) {
-      console.error('[RealAPI] 회원탈퇴 실패:', error);
-      return {
-        success: false,
-        message: '회원탈퇴에 실패했습니다.',
-      };
-    }
-    */
   }
 
   async getCurrentUser(): Promise<User | null> {
@@ -327,31 +214,32 @@ export class RealApiService extends BaseApiService {
     }
 
     return null;
-
-    /* 원래 코드 - 원상복구 시 위 코드를 제거하고 이 코드를 복원하세요
-    if (this.currentUser) {
-      return this.currentUser;
-    }
-
-    if (!this.authToken) {
-      return null;
-    }
-
-    try {
-      const data = await this.fetchWithAuth('/users/me');
-      if (data.success && data.data) {
-        this.currentUser = data.data;
-        return this.currentUser;
-      }
-    } catch (error) {
-      console.error('[RealAPI] 사용자 정보 조회 실패:', error);
-    }
-
-    return null;
-    */
   }
 
-  // ==================== 원래 구현 (수정 없음) ====================
+  // ==================== 통합 위치 업데이트 API (메인) ====================
+
+  async updateLocation(request: LocationUpdateRequest): Promise<LocationUpdateResponse> {
+    try {
+      console.log('[RealAPI] 위치 업데이트 요청:', request);
+      
+      const data = await this.fetchWithAuth('/api/location/update', {
+        method: 'POST',
+        body: JSON.stringify(request),
+      });
+
+      console.log('[RealAPI] 위치 업데이트 응답:', data);
+      return data;
+      
+    } catch (error) {
+      console.error('[RealAPI] 위치 업데이트 실패:', error);
+      return {
+        success: false,
+        message: '위치 정보 업데이트에 실패했습니다.',
+      };
+    }
+  }
+
+  // ==================== 원래 구현 (개별 API - 참고용) ====================
 
   async getSettings(): Promise<Settings> {
     try {
@@ -388,12 +276,12 @@ export class RealApiService extends BaseApiService {
   async getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse> {
     try {
       const params = new URLSearchParams({
-        lat: request.latitude.toString(),
-        lng: request.longitude.toString(),
+        latitude: request.latitude.toString(),
+        longitude: request.longitude.toString(),
         radius: (request.radius || 500).toString(),
       });
 
-      const data = await this.fetchWithAuth(`/vehicles/nearby?${params}`, {
+      const data = await this.fetchWithAuth(`/api/vehicles/nearby?${params}`, {
         method: 'GET',
       });
 
@@ -413,12 +301,12 @@ export class RealApiService extends BaseApiService {
   async getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse> {
     try {
       const params = new URLSearchParams({
-        lat: request.latitude.toString(),
-        lng: request.longitude.toString(),
+        latitude: request.latitude.toString(),
+        longitude: request.longitude.toString(),
         radius: (request.radius || 500).toString(),
       });
 
-      const data = await this.fetchWithAuth(`/people/nearby?${params}`, {
+      const data = await this.fetchWithAuth(`/api/people/nearby?${params}`, {
         method: 'GET',
       });
 
@@ -437,7 +325,7 @@ export class RealApiService extends BaseApiService {
   
   async getCollisionWarning(request: GetCollisionWarningRequest): Promise<GetCollisionWarningResponse> {
     try {
-      const data = await this.fetchWithAuth('/collision/warning', {
+      const data = await this.fetchWithAuth('/api/collision/warning', {
         method: 'POST',
         body: JSON.stringify(request),
       });
