@@ -2,12 +2,12 @@ import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
 import { CollisionWarning } from '@/types/api.types';
 import React, { useEffect, useRef } from 'react';
 import {
-    Animated,
-    Dimensions,
-    Image,
-    StyleSheet,
-    Text,
-    View,
+  Animated,
+  Dimensions,
+  Image,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -181,7 +181,7 @@ export default function CollisionWarningComponent({ warning, visible }: Collisio
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 120, // 네비게이션 바 위
+    top: width - 80, // 지도 하단에서 약간 위로 (지도와 도로 영역 경계)
     left: 20,
     right: 20,
     zIndex: 100,

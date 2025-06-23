@@ -13,14 +13,14 @@ import {
   Dimensions,
   Image,
   Platform,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 const MAP_HEIGHT = width; // 정사각형 지도
@@ -38,6 +38,7 @@ export default function MainScreen() {
   
   // API 모드 확인 (mock 모드에서만 테스트 활성화)
   const isMockMode = apiConfig.mode === 'mock';
+  const insets = useSafeAreaInsets();
 
   // Mock 모드에서 테스트용 충돌 경고 가져오기
   const fetchTestCollisionWarning = async () => {
@@ -208,8 +209,8 @@ export default function MainScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor={BRAND_COLOR} barStyle="light-content" />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar backgroundColor={BRAND_COLOR} barStyle="light-content" translucent={false}/>
       
       <ScrollView 
         style={styles.scrollView}
@@ -245,7 +246,10 @@ export default function MainScreen() {
       />
 
       {/* 하단 네비게이션 버튼 (고정) */}
-      <View style={styles.bottomNavigation}>
+      <View style={[
+        styles.bottomNavigation,
+        { bottom: insets.bottom } // 시스템 네비게이션 바 높이만큼 올림
+      ]}>
         <TouchableOpacity
           style={styles.navButton}
           onPress={handleMyPage}
@@ -384,14 +388,14 @@ const styles = StyleSheet.create({
   // 하단 네비게이션 (고정)
   bottomNavigation: {
     position: 'absolute',
-    bottom: 0,
+    // bottom: 0,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 20,
     paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20, // iPhone 노치 대응
+    paddingBottom: 20, // Platform.OS === 'ios' ? 30 : 20, // 20으로 고정
     backgroundColor: 'rgba(0, 0, 0, 0.3)', // 반투명 배경
   },
   navButton: {
