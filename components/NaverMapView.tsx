@@ -67,7 +67,7 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
   const mapRef = useRef<any>(null);
   const deviceId = useRef<string>(`mobile_device_${Date.now()}`); // 고유 기기 ID
 
-  // 통합 API를 통해 위치 정보 전송 및 주변 정보 가져오기
+  // 🔧 수정된 통합 API를 통해 위치 정보 전송 및 주변 정보 가져오기
   const updateLocationData = async (latitude: number, longitude: number, accuracy: number) => {
     try {
       const locationUpdateRequest: LocationUpdateRequest = {
@@ -110,13 +110,18 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
           setNearbyPeople(response.nearby_people.people);
         }
 
-        // 충돌 경고 처리
-        if (response.collision_warning && onCollisionWarning) {
-          const warning = response.collision_warning.hasWarning 
-            ? response.collision_warning.warning || null
-            : null;
-          onCollisionWarning(warning);
+        // 🔧 수정된 충돌 경고 처리 로직
+        // hasWarning이 true이고 실제 warning 데이터가 있을 때만 콜백 호출
+        if (response.collision_warning && 
+            response.collision_warning.hasWarning && 
+            response.collision_warning.warning && 
+            onCollisionWarning) {
+          console.log('[NaverMap] 새로운 충돌 경고 감지:', response.collision_warning.warning);
+          onCollisionWarning(response.collision_warning.warning);
         }
+        // 🎯 핵심 수정: hasWarning이 false일 때는 onCollisionWarning을 호출하지 않음
+        // 기존 경고가 5초 타이머로 자동 해제되도록 함
+        
       } else {
         console.error('[NaverMap] 위치 업데이트 실패:', response.message);
       }

@@ -46,7 +46,7 @@ export default function MainScreen() {
     if (!isMockMode) return;
     
     try {
-      console.log('충돌 경고 테스트 요청');
+      console.log('[MainScreen] Mock 충돌 경고 테스트 요청');
       const response = await apiService.getCollisionWarning({
         device_id: `mobile_device_${Date.now()}`,
         latitude: 37.5666102,
@@ -54,10 +54,15 @@ export default function MainScreen() {
       });
 
       if (response.success && response.data?.hasWarning && response.data.warning) {
+        console.log('[MainScreen] Mock 경고 생성됨:', response.data.warning);
         handleCollisionWarning(response.data.warning);
+      } else {
+        console.log('[MainScreen] Mock 경고 없음 - 기존 경고 유지');
+        // 🎯 핵심 수정: 여기서는 handleCollisionWarning(null)을 호출하지 않음
+        // 기존 경고가 있다면 5초 타이머로 자동 해제되도록 함
       }
     } catch (error) {
-      console.error('충돌 경고 조회 실패:', error);
+      console.error('[MainScreen] Mock 충돌 경고 조회 실패:', error);
     }
   };
 
@@ -65,28 +70,44 @@ export default function MainScreen() {
   const handleCollisionWarning = (warning: CollisionWarning | null) => {
     console.log('[MainScreen] 충돌 경고 수신:', warning);
     
-    // 이전 타이머가 있으면 취소
+    // 🎯 핵심 수정: null이 오면 무시 (기존 경고가 5초 타이머로 자동 해제되도록)
+    if (!warning) {
+      console.log('[MainScreen] 경고 해제 신호 무시 - 기존 타이머 유지');
+      return;
+    }
+    
+    // 이전 타이머가 있으면 취소 (새로운 경고로 교체)
+    if (warningTimerRef.current) {
+      console.log('[MainScreen] 기존 경고 타이머 취소 - 새로운 경고로 교체');
+      clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = null;
+    }
+    
+    // 새로운 경고 표시
+    console.log('[MainScreen] 새로운 충돌 경고 표시 시작 (5초간)');
+    setCollisionWarning(warning);
+    setShowWarning(true);
+    
+    // 새로운 5초 타이머 설정
+    warningTimerRef.current = setTimeout(() => {
+      console.log('[MainScreen] 충돌 경고 5초 타이머 완료 - 경고 해제');
+      setShowWarning(false);
+      setCollisionWarning(null);
+      warningTimerRef.current = null;
+    }, 5000);
+  };
+
+  // 🔧 추가: 긴급 상황에서 수동으로 경고를 해제하고 싶을 때 사용할 수 있는 함수 (선택적)
+  const clearCollisionWarning = () => {
+    console.log('[MainScreen] 수동 충돌 경고 해제');
+    
     if (warningTimerRef.current) {
       clearTimeout(warningTimerRef.current);
       warningTimerRef.current = null;
     }
     
-    if (warning) {
-      // 상태 업데이트
-      setCollisionWarning(warning);
-      setShowWarning(true);
-      
-      // 새로운 5초 타이머 설정
-      warningTimerRef.current = setTimeout(() => {
-        setShowWarning(false);
-        setCollisionWarning(null);
-        warningTimerRef.current = null;
-      }, 5000);
-    } else {
-      // 경고 해제
-      setShowWarning(false);
-      setCollisionWarning(null);
-    }
+    setShowWarning(false);
+    setCollisionWarning(null);
   };
 
   // 컴포넌트 언마운트 시 타이머 정리
@@ -165,7 +186,7 @@ export default function MainScreen() {
       
       const imageStyle: any = {
         position: 'absolute' as const,
-        bottom: 150,
+        bottom: 100,
         width: 240,
         height: 240,
         zIndex: 10, // 벽 이미지보다 위에 표시

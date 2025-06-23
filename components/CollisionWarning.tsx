@@ -181,7 +181,7 @@ export default function CollisionWarningComponent({ warning, visible }: Collisio
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: width - 80, // 지도 하단에서 약간 위로 (지도와 도로 영역 경계)
+    top: width, // 지도 하단에서 약간 위로 (지도와 도로 영역 경계)
     left: 20,
     right: 20,
     zIndex: 100,
