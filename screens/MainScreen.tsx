@@ -48,32 +48,44 @@ export default function MainScreen() {
     try {
       console.log('충돌 경고 테스트 요청');
       const response = await apiService.getCollisionWarning({
+        device_id: `mobile_device_${Date.now()}`,
         latitude: 37.5666102,
         longitude: 126.9783881,
-        heading: 0,
-        speed: 10,
       });
 
       if (response.success && response.data?.hasWarning && response.data.warning) {
-        // 이전 타이머가 있으면 취소
-        if (warningTimerRef.current) {
-          clearTimeout(warningTimerRef.current);
-          warningTimerRef.current = null;
-        }
-        
-        // 상태 업데이트
-        setCollisionWarning(response.data.warning);
-        setShowWarning(true);
-        
-        // 새로운 5초 타이머 설정
-        warningTimerRef.current = setTimeout(() => {
-          setShowWarning(false);
-          setCollisionWarning(null);
-          warningTimerRef.current = null;
-        }, 5000);
+        handleCollisionWarning(response.data.warning);
       }
     } catch (error) {
       console.error('충돌 경고 조회 실패:', error);
+    }
+  };
+
+  // NaverMapView에서 받은 충돌 경고 처리 (api 모드용)
+  const handleCollisionWarning = (warning: CollisionWarning | null) => {
+    console.log('[MainScreen] 충돌 경고 수신:', warning);
+    
+    // 이전 타이머가 있으면 취소
+    if (warningTimerRef.current) {
+      clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = null;
+    }
+    
+    if (warning) {
+      // 상태 업데이트
+      setCollisionWarning(warning);
+      setShowWarning(true);
+      
+      // 새로운 5초 타이머 설정
+      warningTimerRef.current = setTimeout(() => {
+        setShowWarning(false);
+        setCollisionWarning(null);
+        warningTimerRef.current = null;
+      }, 5000);
+    } else {
+      // 경고 해제
+      setShowWarning(false);
+      setCollisionWarning(null);
     }
   };
 
@@ -86,7 +98,7 @@ export default function MainScreen() {
     };
   }, []);
 
-  // 키보드 이벤트 리스너 (웹에서 테스트용)
+  // 키보드 이벤트 리스너 (웹에서 테스트용 - mock 모드에서만)
   useEffect(() => {
     const handleKeyPress = (event: any) => {
       // 'W' 키를 누르면 충돌 경고 테스트 (mock 모드에서만)
@@ -204,6 +216,13 @@ export default function MainScreen() {
             <Text style={styles.testHintText}>이 영역을 터치하면 충돌 경고 테스트</Text>
           </View>
         )}
+        
+        {/* API 모드 안내 (개발 모드 + api 모드일 때만 표시) */}
+        {__DEV__ && apiConfig.mode === 'api' && (
+          <View style={styles.testHint}>
+            <Text style={styles.testHintText}>API 모드: 실시간 서버 연동 중</Text>
+          </View>
+        )}
       </>
     );
   };
@@ -220,7 +239,10 @@ export default function MainScreen() {
       >
         {/* 상단 지도 영역 */}
         <View style={styles.mapSection}>
-          <NaverMapView height={MAP_HEIGHT} />
+          <NaverMapView 
+            height={MAP_HEIGHT} 
+            onCollisionWarning={handleCollisionWarning} // 충돌 경고 콜백 연결
+          />
         </View>
 
         {/* 하단 도로 배경 영역 */}

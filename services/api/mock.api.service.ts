@@ -10,6 +10,8 @@ import {
   GetNearbyPeopleResponse,
   GetNearbyVehiclesRequest,
   GetNearbyVehiclesResponse,
+  LocationUpdateRequest,
+  LocationUpdateResponse,
   LoginRequest,
   LoginResponse,
   Person,
@@ -300,6 +302,102 @@ export class MockApiService extends BaseApiService {
     }
   }
 
+  async updateLocation(request: LocationUpdateRequest): Promise<LocationUpdateResponse> {
+    console.log('[MockAPI] updateLocation 시도:', request);
+    await this.delay(200); // 네트워크 지연 시뮬레이션
+
+    const { location } = request;
+    
+    // 처음 호출 시 Mock 데이터 생성
+    if (this.mockVehicles.size === 0) {
+      this.initializeMockVehicles(location.latitude, location.longitude);
+    }
+    if (this.mockPeople.size === 0) {
+      this.initializeMockPeople(location.latitude, location.longitude);
+    }
+    
+    // Mock 데이터 위치 업데이트
+    this.updateMockVehiclePositions();
+    this.updateMockPeoplePositions();
+    
+    // 반경 내 객체 필터링
+    const radius = 500; // 500m 반경
+    const nearbyVehicles = Array.from(this.mockVehicles.values()).filter(vehicle => {
+      const distance = this.calculateDistance(
+        location.latitude, location.longitude,
+        vehicle.latitude, vehicle.longitude
+      );
+      return distance <= radius;
+    });
+
+    const nearbyPeople = Array.from(this.mockPeople.values()).filter(person => {
+      const distance = this.calculateDistance(
+        location.latitude, location.longitude,
+        person.latitude, person.longitude
+      );
+      return distance <= radius;
+    });
+
+    // Mock 충돌 경고 생성
+    const shouldShowWarning = Math.random() > 0.8; // 20% 확률로 경고 표시
+    let collisionWarning = null;
+    
+    if (shouldShowWarning && (nearbyVehicles.length > 0 || nearbyPeople.length > 0)) {
+      const allObjects = [...nearbyVehicles, ...nearbyPeople];
+      const targetObject = allObjects[Math.floor(Math.random() * allObjects.length)];
+      
+      const directions = ['front', 'front-left', 'front-right', 'left', 'right'] as const;
+      const relativeDirection = directions[Math.floor(Math.random() * directions.length)];
+      
+      const distance = Math.random() * 50 + 20; // 20-70m
+      const relativeSpeed = targetObject.speed + 10; // 상대속도
+      const ttc = distance / relativeSpeed;
+      
+      let severity: 'low' | 'medium' | 'high' | 'critical';
+      if (ttc < 2) severity = 'critical';
+      else if (ttc < 4) severity = 'high';
+      else if (ttc < 6) severity = 'medium';
+      else severity = 'low';
+
+      collisionWarning = {
+        objectId: targetObject.id,
+        objectType: targetObject.type === 'vehicle' ? 'vehicle' as const : 'person' as const,
+        direction: targetObject.heading,
+        relativeDirection,
+        speed: targetObject.speed,
+        speed_kph: targetObject.speed_kph,
+        distance,
+        ttc,
+        severity,
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return {
+      success: true,
+      message: '위치 정보 업데이트 완료',
+      server_timestamp: new Date().toISOString(),
+      assigned_id: 'mock_user_' + request.device_id,
+      calculated_motion: {
+        speed: Math.random() * 16.67 + 5.56, // 20-80 km/h를 m/s로
+        speed_kph: Math.random() * 60 + 20,
+        heading: Math.random() * 360,
+      },
+      nearby_vehicles: {
+        vehicles: nearbyVehicles,
+        total_count: nearbyVehicles.length,
+      },
+      nearby_people: {
+        people: nearbyPeople,
+        total_count: nearbyPeople.length,
+      },
+      collision_warning: {
+        hasWarning: !!collisionWarning,
+        warning: collisionWarning || undefined,
+      },
+    };
+  }
+
   async getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse> {
     console.log('[MockAPI] getNearbyVehicles 시도:', request);
     await this.delay(200); // 네트워크 지연 시뮬레이션
@@ -516,7 +614,7 @@ export class MockApiService extends BaseApiService {
     
     // 거리와 TTC 계산 (mock)
     const distance = Math.random() * 50 + 20; // 20-70m (더 가까운 거리로 조정)
-    const relativeSpeed = targetObject.speed + request.speed; // 상대속도 계산
+    const relativeSpeed = targetObject.speed + 10; // 상대속도 계산
     const ttc = distance / relativeSpeed; // 간단한 계산
     
     // 위험도 결정
