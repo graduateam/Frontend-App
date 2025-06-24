@@ -17,10 +17,10 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MAP_HEIGHT = SCREEN_WIDTH; // 정사각형 지도
 
-// 기본 위치 (서울)
+// 지정된 위치 (고정 좌표)
 const DEFAULT_LOCATION = {
-  latitude: 37.5666102,
-  longitude: 126.9783881,
+  latitude: 37.676845,
+  longitude: 126.745762,
 };
 
 interface NaverMapProps {
@@ -46,7 +46,6 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
     heading: null,
     accuracy: 0,
   });
-  const [isFirstLocationUpdate, setIsFirstLocationUpdate] = useState(true);
   const [camera, setCamera] = useState({
     latitude: DEFAULT_LOCATION.latitude,
     longitude: DEFAULT_LOCATION.longitude,
@@ -62,12 +61,14 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
     heading: 0,
   });
   
+  // ✅ useRef로 초기화 상태 관리 (컴포넌트 재렌더링과 독립적)
+  const hasInitializedCamera = useRef(false);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const dataUpdateInterval = useRef<number | null>(null);
   const mapRef = useRef<any>(null);
   const deviceId = useRef<string>(`mobile_device_${Date.now()}`); // 고유 기기 ID
 
-  // 🔧 수정된 통합 API를 통해 위치 정보 전송 및 주변 정보 가져오기
+  // 통합 API를 통해 위치 정보 전송 및 주변 정보 가져오기
   const updateLocationData = async (latitude: number, longitude: number, accuracy: number) => {
     try {
       const locationUpdateRequest: LocationUpdateRequest = {
@@ -110,18 +111,13 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
           setNearbyPeople(response.nearby_people.people);
         }
 
-        // 🔧 수정된 충돌 경고 처리 로직
-        // hasWarning이 true이고 실제 warning 데이터가 있을 때만 콜백 호출
-        if (response.collision_warning && 
-            response.collision_warning.hasWarning && 
-            response.collision_warning.warning && 
-            onCollisionWarning) {
-          console.log('[NaverMap] 새로운 충돌 경고 감지:', response.collision_warning.warning);
-          onCollisionWarning(response.collision_warning.warning);
+        // 충돌 경고 처리
+        if (response.collision_warning && onCollisionWarning) {
+          const warning = response.collision_warning.hasWarning 
+            ? response.collision_warning.warning || null
+            : null;
+          onCollisionWarning(warning);
         }
-        // 🎯 핵심 수정: hasWarning이 false일 때는 onCollisionWarning을 호출하지 않음
-        // 기존 경고가 5초 타이머로 자동 해제되도록 함
-        
       } else {
         console.error('[NaverMap] 위치 업데이트 실패:', response.message);
       }
@@ -155,14 +151,18 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
             accuracy: currentLocation.coords.accuracy || 0,
           });
           
-          // 초기 카메라 위치 설정
-          setCamera({
-            latitude: currentLocation.coords.latitude,
-            longitude: currentLocation.coords.longitude,
-            zoom: 15,
-            tilt: 0,
-            bearing: 0,
-          });
+          // ✅ 초기 카메라 위치 설정 (지정된 좌표로 단 한 번만)
+          if (!hasInitializedCamera.current) {
+            console.log('[NaverMap] 초기 카메라 위치를 지정된 좌표로 설정:', DEFAULT_LOCATION);
+            setCamera({
+              latitude: DEFAULT_LOCATION.latitude,   // 지정된 좌표 사용
+              longitude: DEFAULT_LOCATION.longitude, // 지정된 좌표 사용
+              zoom: 16, // 적절한 축척으로 설정
+              tilt: 0,
+              bearing: 0,
+            });
+            hasInitializedCamera.current = true;
+          }
         }
       } catch (error) {
         console.log('위치 가져오기 실패, 기본 위치 사용:', error);
@@ -198,17 +198,8 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
           
           setLocationData(newLocationData);
           
-          // 처음 위치를 받을 때만 지도 중심 이동
-          if (isFirstLocationUpdate) {
-            setCamera({
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              zoom: 16, // 적절한 축척으로 설정
-              tilt: 0,
-              bearing: 0,
-            });
-            setIsFirstLocationUpdate(false);
-          }
+          // ✅ 카메라 초기화는 더 이상 하지 않음
+          // 사용자가 수동으로 지도를 이동한 후에는 자동으로 따라가지 않음
         }
       );
     })();
@@ -240,6 +231,18 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
       }
     };
   }, [isLoading, locationData.latitude, locationData.longitude, locationData.accuracy]);
+
+  // ✅ 수동으로 지정된 위치로 이동하는 함수 (필요시 사용)
+  const moveToSpecificLocation = () => {
+    console.log('[NaverMap] 사용자 요청으로 지정된 위치로 이동');
+    setCamera({
+      latitude: DEFAULT_LOCATION.latitude,
+      longitude: DEFAULT_LOCATION.longitude,
+      zoom: 16,
+      tilt: 0,
+      bearing: 0,
+    });
+  };
 
   // 속도를 km/h로 변환 (서버 계산값 우선 사용)
   const getSpeedInKmh = (): string => {
@@ -285,7 +288,7 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
         ref={mapRef}
         style={styles.map}
         camera={camera}
-        isShowLocationButton={true}
+        isShowLocationButton={true}  // ✅ 네이버 지도 기본 위치 버튼 활성화
         isShowCompass={true}
         isShowScaleBar={true}
         isShowZoomControls={Platform.OS === 'android'}
