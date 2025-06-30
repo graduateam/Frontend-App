@@ -17,10 +17,10 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MAP_HEIGHT = SCREEN_WIDTH; // 정사각형 지도
 
-// 지정된 위치 (고정 좌표)
+// 기본 위치 (서울) - GPS 실패 시에만 사용
 const DEFAULT_LOCATION = {
-  latitude: 37.676845,
-  longitude: 126.745762,
+  latitude: 37.5666102,
+  longitude: 126.9783881,
 };
 
 interface NaverMapProps {
@@ -151,12 +151,12 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
             accuracy: currentLocation.coords.accuracy || 0,
           });
           
-          // ✅ 초기 카메라 위치 설정 (지정된 좌표로 단 한 번만)
+          // ✅ 초기 카메라 위치 설정 (현재 GPS 위치로 단 한 번만)
           if (!hasInitializedCamera.current) {
-            console.log('[NaverMap] 초기 카메라 위치를 지정된 좌표로 설정:', DEFAULT_LOCATION);
+            console.log('[NaverMap] 초기 카메라 위치를 현재 GPS 위치로 설정');
             setCamera({
-              latitude: DEFAULT_LOCATION.latitude,   // 지정된 좌표 사용
-              longitude: DEFAULT_LOCATION.longitude, // 지정된 좌표 사용
+              latitude: currentLocation.coords.latitude,   // 실제 GPS 위치 사용
+              longitude: currentLocation.coords.longitude, // 실제 GPS 위치 사용
               zoom: 16, // 적절한 축척으로 설정
               tilt: 0,
               bearing: 0,
@@ -166,6 +166,19 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
         }
       } catch (error) {
         console.log('위치 가져오기 실패, 기본 위치 사용:', error);
+        
+        // ✅ GPS 실패 시에도 기본 위치로 카메라 초기화 (단 한 번만)
+        if (!hasInitializedCamera.current) {
+          console.log('[NaverMap] GPS 실패로 기본 위치로 카메라 설정');
+          setCamera({
+            latitude: DEFAULT_LOCATION.latitude,
+            longitude: DEFAULT_LOCATION.longitude,
+            zoom: 15,
+            tilt: 0,
+            bearing: 0,
+          });
+          hasInitializedCamera.current = true;
+        }
       } finally {
         setIsLoading(false);
       }
@@ -232,16 +245,18 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
     };
   }, [isLoading, locationData.latitude, locationData.longitude, locationData.accuracy]);
 
-  // ✅ 수동으로 지정된 위치로 이동하는 함수 (필요시 사용)
-  const moveToSpecificLocation = () => {
-    console.log('[NaverMap] 사용자 요청으로 지정된 위치로 이동');
-    setCamera({
-      latitude: DEFAULT_LOCATION.latitude,
-      longitude: DEFAULT_LOCATION.longitude,
-      zoom: 16,
-      tilt: 0,
-      bearing: 0,
-    });
+  // ✅ 수동으로 내 위치로 이동하는 함수 (필요시 사용)
+  const moveToMyLocation = () => {
+    if (locationData.latitude && locationData.longitude) {
+      console.log('[NaverMap] 사용자 요청으로 내 위치로 이동');
+      setCamera({
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        zoom: 16,
+        tilt: 0,
+        bearing: 0,
+      });
+    }
   };
 
   // 속도를 km/h로 변환 (서버 계산값 우선 사용)

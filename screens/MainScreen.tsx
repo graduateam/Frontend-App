@@ -36,9 +36,36 @@ export default function MainScreen() {
   const [showWarning, setShowWarning] = useState(false);
   const warningTimerRef = useRef<number | null>(null);
   
-  // API 모드 확인 (mock 모드에서만 테스트 활성화)
+  // API 모드 확인
   const isMockMode = apiConfig.mode === 'mock';
+  const isApiMode = apiConfig.mode === 'api';
   const insets = useSafeAreaInsets();
+
+  // ✅ API 모드에서 상시 표시할 더미 경고 데이터
+  const dummyApiWarning: CollisionWarning = {
+    objectId: 'api_demo_vehicle_001',
+    objectType: 'vehicle',
+    direction: 45,
+    relativeDirection: 'front-right',
+    speed: 13.89, // 50km/h
+    speed_kph: 50,
+    distance: 45,
+    ttc: 3.2,
+    severity: 'high',
+    timestamp: new Date().toISOString(),
+  };
+
+  // ✅ API 모드일 때 앱 시작과 함께 상시 경고 표시
+  useEffect(() => {
+    if (isApiMode) {
+      console.log('[MainScreen - API 모드] 상시 경고 표시 시작');
+      setCollisionWarning(dummyApiWarning);
+      setShowWarning(true);
+      
+      // API 모드에서는 타이머를 설정하지 않아서 계속 표시됨
+      // 필요하다면 주기적으로 경고 내용을 변경할 수도 있음
+    }
+  }, [isApiMode]);
 
   // Mock 모드에서 테스트용 충돌 경고 가져오기
   const fetchTestCollisionWarning = async () => {
@@ -46,7 +73,7 @@ export default function MainScreen() {
     if (!isMockMode) return;
     
     try {
-      console.log('[MainScreen] Mock 충돌 경고 테스트 요청');
+      console.log('충돌 경고 테스트 요청');
       const response = await apiService.getCollisionWarning({
         device_id: `mobile_device_${Date.now()}`,
         latitude: 37.5666102,
@@ -54,15 +81,10 @@ export default function MainScreen() {
       });
 
       if (response.success && response.data?.hasWarning && response.data.warning) {
-        console.log('[MainScreen] Mock 경고 생성됨:', response.data.warning);
         handleCollisionWarning(response.data.warning);
-      } else {
-        console.log('[MainScreen] Mock 경고 없음 - 기존 경고 유지');
-        // 🎯 핵심 수정: 여기서는 handleCollisionWarning(null)을 호출하지 않음
-        // 기존 경고가 있다면 5초 타이머로 자동 해제되도록 함
       }
     } catch (error) {
-      console.error('[MainScreen] Mock 충돌 경고 조회 실패:', error);
+      console.error('충돌 경고 조회 실패:', error);
     }
   };
 
@@ -70,44 +92,34 @@ export default function MainScreen() {
   const handleCollisionWarning = (warning: CollisionWarning | null) => {
     console.log('[MainScreen] 충돌 경고 수신:', warning);
     
-    // 🎯 핵심 수정: null이 오면 무시 (기존 경고가 5초 타이머로 자동 해제되도록)
-    if (!warning) {
-      console.log('[MainScreen] 경고 해제 신호 무시 - 기존 타이머 유지');
+    // ✅ API 모드에서는 상시 표시이므로 외부 경고를 무시
+    if (isApiMode) {
+      console.log('[MainScreen - API 모드] 상시 경고 표시 중이므로 외부 경고 무시');
       return;
     }
     
-    // 이전 타이머가 있으면 취소 (새로운 경고로 교체)
+    // 이전 타이머가 있으면 취소
     if (warningTimerRef.current) {
-      console.log('[MainScreen] 기존 경고 타이머 취소 - 새로운 경고로 교체');
       clearTimeout(warningTimerRef.current);
       warningTimerRef.current = null;
     }
     
-    // 새로운 경고 표시
-    console.log('[MainScreen] 새로운 충돌 경고 표시 시작 (5초간)');
-    setCollisionWarning(warning);
-    setShowWarning(true);
-    
-    // 새로운 5초 타이머 설정
-    warningTimerRef.current = setTimeout(() => {
-      console.log('[MainScreen] 충돌 경고 5초 타이머 완료 - 경고 해제');
+    if (warning) {
+      // 상태 업데이트
+      setCollisionWarning(warning);
+      setShowWarning(true);
+      
+      // 새로운 5초 타이머 설정
+      warningTimerRef.current = setTimeout(() => {
+        setShowWarning(false);
+        setCollisionWarning(null);
+        warningTimerRef.current = null;
+      }, 5000);
+    } else {
+      // 경고 해제
       setShowWarning(false);
       setCollisionWarning(null);
-      warningTimerRef.current = null;
-    }, 5000);
-  };
-
-  // 🔧 추가: 긴급 상황에서 수동으로 경고를 해제하고 싶을 때 사용할 수 있는 함수 (선택적)
-  const clearCollisionWarning = () => {
-    console.log('[MainScreen] 수동 충돌 경고 해제');
-    
-    if (warningTimerRef.current) {
-      clearTimeout(warningTimerRef.current);
-      warningTimerRef.current = null;
     }
-    
-    setShowWarning(false);
-    setCollisionWarning(null);
   };
 
   // 컴포넌트 언마운트 시 타이머 정리
@@ -239,9 +251,9 @@ export default function MainScreen() {
         )}
         
         {/* API 모드 안내 (개발 모드 + api 모드일 때만 표시) */}
-        {__DEV__ && apiConfig.mode === 'api' && (
+        {__DEV__ && isApiMode && (
           <View style={styles.testHint}>
-            <Text style={styles.testHintText}>API 모드: 실시간 서버 연동 중</Text>
+            <Text style={styles.testHintText}>API 모드: 상시 경고 표시 중</Text>
           </View>
         )}
       </>
@@ -282,7 +294,7 @@ export default function MainScreen() {
         )}
       </ScrollView>
 
-      {/* 충돌 경고 표시 */}
+      {/* ✅ 충돌 경고 표시 - API 모드에서는 항상 표시 */}
       <CollisionWarningComponent 
         warning={collisionWarning}
         visible={showWarning && !!collisionWarning}
