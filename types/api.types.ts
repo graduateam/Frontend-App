@@ -81,7 +81,6 @@ export interface Vehicle {
   timestamp: string; // ISO 8601 형식
   is_collision_risk: boolean; // 충돌 위험 여부
   ttc?: number; // Time to Collision (초)
-  source?: string; // 데이터 소스 (camera_detection, mobile_user, simulation)
 }
 
 export interface GetNearbyVehiclesRequest {
@@ -95,7 +94,6 @@ export interface GetNearbyVehiclesResponse {
   data?: {
     vehicles: Vehicle[];
     timestamp: string;
-    total_count?: number;
   };
   message?: string;
 }
@@ -125,7 +123,6 @@ export interface GetNearbyPeopleResponse {
   data?: {
     people: Person[];
     timestamp: string;
-    total_count?: number;
   };
   message?: string;
 }
@@ -145,9 +142,10 @@ export interface CollisionWarning {
 }
 
 export interface GetCollisionWarningRequest {
-  device_id: string;
   latitude: number;
   longitude: number;
+  heading: number; // 운전자의 현재 방향
+  speed: number; // 운전자의 현재 속도
 }
 
 export interface GetCollisionWarningResponse {
@@ -157,51 +155,6 @@ export interface GetCollisionWarningResponse {
     hasWarning: boolean;
   };
   message?: string;
-}
-
-// 통합 위치 업데이트 API 타입 (메인 API)
-export interface LocationUpdateRequest {
-  device_id: string;
-  timestamp: string; // ISO 8601 형식
-  location: {
-    latitude: number;
-    longitude: number;
-    accuracy: number; // GPS 정확도 (미터)
-  };
-  device_info: {
-    device_type: 'mobile' | 'vehicle' | 'infrastructure';
-    app_version: string;
-  };
-}
-
-export interface CalculatedMotion {
-  speed: number; // m/s (서버 계산)
-  speed_kph: number; // km/h (서버 계산)
-  heading: number; // 0-360도 (서버 계산)
-  acceleration?: {
-    x: number;
-    y: number;
-  };
-}
-
-export interface LocationUpdateResponse {
-  success: boolean;
-  message?: string;
-  server_timestamp?: string;
-  assigned_id?: string;
-  calculated_motion?: CalculatedMotion;
-  nearby_vehicles?: {
-    vehicles: Vehicle[];
-    total_count: number;
-  };
-  nearby_people?: {
-    people: Person[];
-    total_count: number;
-  };
-  collision_warning?: {
-    hasWarning: boolean;
-    warning?: CollisionWarning;
-  };
 }
 
 // API 서비스 인터페이스
@@ -220,11 +173,12 @@ export interface IApiService {
   getSettings(): Promise<Settings>;
   updateSettings(settings: Settings): Promise<{ success: boolean }>;
   
-  // 통합 위치 업데이트 API (메인)
-  updateLocation(request: LocationUpdateRequest): Promise<LocationUpdateResponse>;
-  
-  // 개별 API들 (참고용, 특수한 경우에만 사용)
+  // 차량 정보 관련
   getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse>;
+  
+  // 사람 정보 관련
   getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse>;
+  
+  // 충돌 경고 관련
   getCollisionWarning(request: GetCollisionWarningRequest): Promise<GetCollisionWarningResponse>;
 }

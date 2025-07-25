@@ -1,6 +1,6 @@
 import { Colors } from '@/constants/Colors';
 import { apiService } from '@/services/api';
-import { CollisionWarning, LocationUpdateRequest, Person, Vehicle } from '@/types/api.types';
+import { Person, Vehicle } from '@/types/api.types';
 import { NaverMapMarkerOverlay, NaverMapView } from '@mj-studio/react-native-naver-map';
 import * as Location from 'expo-location';
 import React, { useEffect, useRef, useState } from 'react';
@@ -25,7 +25,6 @@ const DEFAULT_LOCATION = {
 
 interface NaverMapProps {
   height?: number;
-  onCollisionWarning?: (warning: CollisionWarning | null) => void; // 충돌 경고 콜백 추가
 }
 
 interface LocationData {
@@ -33,10 +32,9 @@ interface LocationData {
   longitude: number;
   speed: number | null; // m/s
   heading: number | null; // degrees (0-360)
-  accuracy: number;
 }
 
-export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: NaverMapProps) {
+export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [location, setLocation] = useState(DEFAULT_LOCATION);
   const [locationData, setLocationData] = useState<LocationData>({
@@ -44,7 +42,6 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
     longitude: DEFAULT_LOCATION.longitude,
     speed: null,
     heading: null,
-    accuracy: 0,
   });
   const [isFirstLocationUpdate, setIsFirstLocationUpdate] = useState(true);
   const [camera, setCamera] = useState({
@@ -56,72 +53,42 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
   });
   const [nearbyVehicles, setNearbyVehicles] = useState<Vehicle[]>([]);
   const [nearbyPeople, setNearbyPeople] = useState<Person[]>([]);
-  const [calculatedMotion, setCalculatedMotion] = useState({
-    speed: 0,
-    speed_kph: 0,
-    heading: 0,
-  });
-  
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
-  const dataUpdateInterval = useRef<number | null>(null);
+  const vehicleUpdateInterval = useRef<number | null>(null);
+  const peopleUpdateInterval = useRef<number | null>(null);
   const mapRef = useRef<any>(null);
-  const deviceId = useRef<string>(`mobile_device_${Date.now()}`); // 고유 기기 ID
 
-  // 통합 API를 통해 위치 정보 전송 및 주변 정보 가져오기
-  const updateLocationData = async (latitude: number, longitude: number, accuracy: number) => {
+  // API를 통해 주변 차량 정보 가져오기
+  const fetchNearbyVehicles = async (latitude: number, longitude: number) => {
     try {
-      const locationUpdateRequest: LocationUpdateRequest = {
-        device_id: deviceId.current,
-        timestamp: new Date().toISOString(),
-        location: {
-          latitude,
-          longitude,
-          accuracy,
-        },
-        device_info: {
-          device_type: 'mobile',
-          app_version: '1.0.0',
-        },
-      };
+      const response = await apiService.getNearbyVehicles({
+        latitude,
+        longitude,
+        radius: 500, // 500m 반경
+      });
 
-      console.log('[NaverMap] 위치 업데이트 요청:', locationUpdateRequest);
-      
-      const response = await apiService.updateLocation(locationUpdateRequest);
-
-      if (response.success) {
-        console.log('[NaverMap] 위치 업데이트 성공:', response);
-        
-        // 서버에서 계산된 모션 정보 업데이트
-        if (response.calculated_motion) {
-          setCalculatedMotion({
-            speed: response.calculated_motion.speed,
-            speed_kph: response.calculated_motion.speed_kph,
-            heading: response.calculated_motion.heading,
-          });
-        }
-
-        // 주변 차량 정보 업데이트
-        if (response.nearby_vehicles) {
-          setNearbyVehicles(response.nearby_vehicles.vehicles);
-        }
-
-        // 주변 사람 정보 업데이트
-        if (response.nearby_people) {
-          setNearbyPeople(response.nearby_people.people);
-        }
-
-        // 충돌 경고 처리
-        if (response.collision_warning && onCollisionWarning) {
-          const warning = response.collision_warning.hasWarning 
-            ? response.collision_warning.warning || null
-            : null;
-          onCollisionWarning(warning);
-        }
-      } else {
-        console.error('[NaverMap] 위치 업데이트 실패:', response.message);
+      if (response.success && response.data) {
+        setNearbyVehicles(response.data.vehicles);
       }
     } catch (error) {
-      console.error('[NaverMap] 위치 업데이트 오류:', error);
+      console.error('주변 차량 정보 조회 실패:', error);
+    }
+  };
+
+  // API를 통해 주변 사람 정보 가져오기
+  const fetchNearbyPeople = async (latitude: number, longitude: number) => {
+    try {
+      const response = await apiService.getNearbyPeople({
+        latitude,
+        longitude,
+        radius: 500, // 500m 반경
+      });
+
+      if (response.success && response.data) {
+        setNearbyPeople(response.data.people);
+      }
+    } catch (error) {
+      console.error('주변 사람 정보 조회 실패:', error);
     }
   };
 
@@ -147,7 +114,6 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
             ...newLocation,
             speed: currentLocation.coords.speed,
             heading: currentLocation.coords.heading,
-            accuracy: currentLocation.coords.accuracy || 0,
           });
           
           // 초기 카메라 위치 설정
@@ -188,7 +154,6 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
             longitude: location.coords.longitude,
             speed: location.coords.speed,
             heading: location.coords.heading,
-            accuracy: location.coords.accuracy || 0,
           };
           
           setLocationData(newLocationData);
@@ -203,6 +168,10 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
               bearing: 0,
             });
             setIsFirstLocationUpdate(false);
+            
+            // 처음 위치를 받을 때 주변 차량 정보도 가져오기
+            fetchNearbyVehicles(location.coords.latitude, location.coords.longitude);
+            fetchNearbyPeople(location.coords.latitude, location.coords.longitude);
           }
         }
       );
@@ -216,52 +185,43 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
     };
   }, []);
 
-  // 주기적으로 통합 API로 위치 정보 전송 및 데이터 업데이트
+  // 주기적으로 차량 및 사람 정보 업데이트
   useEffect(() => {
     if (!isLoading && locationData.latitude && locationData.longitude) {
-      // 1초마다 통합 API 호출
-      dataUpdateInterval.current = setInterval(() => {
-        updateLocationData(
-          locationData.latitude, 
-          locationData.longitude, 
-          locationData.accuracy
-        );
+      // 1초마다 차량 정보 업데이트
+      vehicleUpdateInterval.current = setInterval(() => {
+        fetchNearbyVehicles(locationData.latitude, locationData.longitude);
+      }, 1000);
+      
+      // 1초마다 사람 정보 업데이트
+      peopleUpdateInterval.current = setInterval(() => {
+        fetchNearbyPeople(locationData.latitude, locationData.longitude);
       }, 1000);
     }
     
     return () => {
-      if (dataUpdateInterval.current) {
-        clearInterval(dataUpdateInterval.current);
+      if (vehicleUpdateInterval.current) {
+        clearInterval(vehicleUpdateInterval.current);
+      }
+      if (peopleUpdateInterval.current) {
+        clearInterval(peopleUpdateInterval.current);
       }
     };
-  }, [isLoading, locationData.latitude, locationData.longitude, locationData.accuracy]);
+  }, [isLoading, locationData.latitude, locationData.longitude]);
 
-  // 속도를 km/h로 변환 (서버 계산값 우선 사용)
-  const getSpeedInKmh = (): string => {
-    // 서버에서 계산된 속도가 있으면 사용
-    if (calculatedMotion.speed_kph > 0) {
-      return calculatedMotion.speed_kph.toFixed(1);
-    }
-    
-    // GPS 속도 사용
-    if (locationData.speed === null || locationData.speed < 0) return '0';
-    return (locationData.speed * 3.6).toFixed(1);
+  // 속도를 km/h로 변환
+  const getSpeedInKmh = (speedInMs: number | null): string => {
+    if (speedInMs === null || speedInMs < 0) return '0';
+    return (speedInMs * 3.6).toFixed(1);
   };
 
-  // 방향을 나침반 방향으로 변환 (서버 계산값 우선 사용)
-  const getCompassDirection = (): string => {
-    let heading = calculatedMotion.heading > 0 ? calculatedMotion.heading : locationData.heading;
-    
+  // 방향을 나침반 방향으로 변환
+  const getCompassDirection = (heading: number | null): string => {
     if (heading === null) return '-';
     
     const directions = ['북', '북동', '동', '남동', '남', '남서', '서', '북서'];
     const index = Math.round(heading / 45) % 8;
     return directions[index];
-  };
-
-  // 현재 사용할 방향값 (서버 계산값 우선)
-  const getCurrentHeading = (): number => {
-    return calculatedMotion.heading > 0 ? calculatedMotion.heading : (locationData.heading || 0);
   };
 
   // 로딩 화면
@@ -299,7 +259,7 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
               source={require('@/assets/images/icon_triangle.png')}
               style={[
                 styles.triangleIcon,
-                { transform: [{ rotate: `${getCurrentHeading()}deg` }] }
+                { transform: [{ rotate: `${locationData.heading || 0}deg` }] }
               ]}
               resizeMode="contain"
             />
@@ -316,16 +276,10 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
             height={25}
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <View style={[
-              styles.vehicleMarkerContainer,
-              vehicle.is_collision_risk && styles.collisionRiskMarker
-            ]}>
+            <View style={styles.vehicleMarkerContainer}>
               <Image
                 source={require('@/assets/images/icon_car_2.png')}
-                style={[
-                  styles.vehicleIcon,
-                  { tintColor: vehicle.is_collision_risk ? Colors.primary.darkRed : Colors.primary.darkBlue }
-                ]}
+                style={styles.vehicleIcon}
                 resizeMode="contain"
               />
             </View>
@@ -342,16 +296,10 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
             height={25}
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <View style={[
-              styles.personMarkerContainer,
-              person.is_collision_risk && styles.collisionRiskMarker
-            ]}>
+            <View style={styles.personMarkerContainer}>
               <Image
                 source={require('@/assets/images/icon_user_2.png')}
-                style={[
-                  styles.personIcon,
-                  { tintColor: person.is_collision_risk ? Colors.primary.darkRed : Colors.primary.darkYellow }
-                ]}
+                style={styles.personIcon}
                 resizeMode="contain"
               />
             </View>
@@ -363,11 +311,11 @@ export default function NaverMap({ height = MAP_HEIGHT, onCollisionWarning }: Na
       <View style={styles.infoContainer}>
         <View style={styles.infoBox}>
           <Text style={styles.infoLabel}>속도</Text>
-          <Text style={styles.infoValue}>{getSpeedInKmh()} km/h</Text>
+          <Text style={styles.infoValue}>{getSpeedInKmh(locationData.speed)} km/h</Text>
         </View>
         <View style={styles.infoBox}>
           <Text style={styles.infoLabel}>방향</Text>
-          <Text style={styles.infoValue}>{getCompassDirection()}</Text>
+          <Text style={styles.infoValue}>{getCompassDirection(locationData.heading)}</Text>
         </View>
         {nearbyVehicles.length > 0 && (
           <View style={styles.infoBox}>
@@ -444,14 +392,6 @@ const styles = StyleSheet.create({
     width: 25,
     height: 25,
     tintColor: Colors.primary.darkYellow, // 진한 노란색
-  },
-  
-  // 충돌 위험 마커 강조
-  collisionRiskMarker: {
-    backgroundColor: 'rgba(255, 0, 0, 0.2)',
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: Colors.primary.darkRed,
   },
   
   // 정보 표시

@@ -11,8 +11,6 @@ import {
   GetNearbyVehiclesRequest,
   GetNearbyVehiclesResponse,
   IApiService,
-  LocationUpdateRequest,
-  LocationUpdateResponse,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -33,11 +31,6 @@ export abstract class BaseApiService implements IApiService {
   abstract getCurrentUser(): Promise<User | null>;
   abstract getSettings(): Promise<Settings>;
   abstract updateSettings(settings: Settings): Promise<{ success: boolean }>;
-  
-  // 통합 위치 업데이트 API (메인)
-  abstract updateLocation(request: LocationUpdateRequest): Promise<LocationUpdateResponse>;
-  
-  // 개별 API들 (참고용)
   abstract getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse>;
   abstract getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse>;
   abstract getCollisionWarning(request: GetCollisionWarningRequest): Promise<GetCollisionWarningResponse>;

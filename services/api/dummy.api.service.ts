@@ -10,8 +10,6 @@ import {
   GetNearbyPeopleResponse,
   GetNearbyVehiclesRequest,
   GetNearbyVehiclesResponse,
-  LocationUpdateRequest,
-  LocationUpdateResponse,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -89,34 +87,6 @@ export class DummyApiService extends BaseApiService {
   async updateSettings(settings: Settings): Promise<{ success: boolean }> {
     console.log('[DummyAPI] updateSettings 호출됨:', settings);
     return { success: true };
-  }
-
-  async updateLocation(request: LocationUpdateRequest): Promise<LocationUpdateResponse> {
-    console.log('[DummyAPI] updateLocation 호출됨:', request);
-    await this.delay(100);
-    
-    return {
-      success: true,
-      message: 'Dummy 모드입니다. 실제 위치 업데이트가 수행되지 않았습니다.',
-      server_timestamp: new Date().toISOString(),
-      assigned_id: 'dummy_user_123',
-      calculated_motion: {
-        speed: 0,
-        speed_kph: 0,
-        heading: 0,
-      },
-      nearby_vehicles: {
-        vehicles: [],
-        total_count: 0,
-      },
-      nearby_people: {
-        people: [],
-        total_count: 0,
-      },
-      collision_warning: {
-        hasWarning: false,
-      },
-    };
   }
 
   async getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse> {
