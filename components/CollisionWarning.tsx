@@ -1,4 +1,4 @@
-import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
+import { BRAND_COLOR, Colors, WHITE } from '@/constants/colors';
 import { CollisionWarning } from '@/types/api.types';
 import React, { useEffect, useRef } from 'react';
 import {

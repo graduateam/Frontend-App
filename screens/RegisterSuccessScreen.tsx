@@ -1,4 +1,4 @@
-import { BRAND_COLOR, WHITE } from '@/constants/Colors';
+import { BRAND_COLOR, WHITE } from '@/constants/colors';
 import { router } from 'expo-router';
 import React from 'react';
 import {

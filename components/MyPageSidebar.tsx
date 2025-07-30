@@ -1,5 +1,5 @@
 // components/MyPageSidebar.tsx
-import { Colors, WHITE } from '@/constants/Colors';
+import { Colors, WHITE } from '@/constants/colors';
 import { apiService } from '@/services/api';
 import { User } from '@/types/api.types';
 import { router } from 'expo-router';

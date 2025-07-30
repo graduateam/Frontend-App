@@ -5,7 +5,7 @@ import NaverMapView from '@/components/NaverMapView';
 import PasswordChangeModal from '@/components/PasswordChangeModal';
 import SettingsSidebar from '@/components/SettingsSidebar';
 import { apiConfig } from '@/config/api.config';
-import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
+import { BRAND_COLOR, Colors, WHITE } from '@/constants/colors';
 import { apiService } from '@/services/api';
 import { CollisionWarning } from '@/types/api.types';
 import React, { useEffect, useRef, useState } from 'react';

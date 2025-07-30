@@ -263,7 +263,7 @@ export class RealApiService extends BaseApiService {
         radius: (request.radius || 500).toString(),
       });
 
-      const data = await this.fetchWithAuth(`/vehicles/nearby?${params}`, {
+      const data = await this.fetchWithAuth(`/api/vehicles/nearby?${params}`, {
         method: 'GET',
       });
 
@@ -288,7 +288,7 @@ export class RealApiService extends BaseApiService {
         radius: (request.radius || 500).toString(),
       });
 
-      const data = await this.fetchWithAuth(`/people/nearby?${params}`, {
+      const data = await this.fetchWithAuth(`/api/people/nearby?${params}`, {
         method: 'GET',
       });
 
@@ -307,7 +307,7 @@ export class RealApiService extends BaseApiService {
   
   async getCollisionWarning(request: GetCollisionWarningRequest): Promise<GetCollisionWarningResponse> {
     try {
-      const data = await this.fetchWithAuth('/collision/warning', {
+      const data = await this.fetchWithAuth('/api/collision/warning', {
         method: 'POST',
         body: JSON.stringify(request),
       });

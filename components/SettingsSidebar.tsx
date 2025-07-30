@@ -1,4 +1,4 @@
-import { BRAND_COLOR, Colors } from '@/constants/Colors';
+import { BRAND_COLOR, Colors } from '@/constants/colors';
 import { apiService } from '@/services/api';
 import React, { useEffect, useState } from 'react';
 import {

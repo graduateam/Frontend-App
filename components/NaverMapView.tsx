@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/Colors';
+import { Colors } from '@/constants/colors';
 import { apiService } from '@/services/api';
 import { Person, Vehicle } from '@/types/api.types';
 import { NaverMapMarkerOverlay, NaverMapView } from '@mj-studio/react-native-naver-map';

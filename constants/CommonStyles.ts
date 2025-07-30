@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { BRAND_COLOR, Colors } from './Colors';
+import { BRAND_COLOR, Colors } from './colors';
 
 // 공통 스타일 정의
 export const CommonStyles = StyleSheet.create({

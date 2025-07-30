@@ -1,4 +1,4 @@
-import { BRAND_COLOR, WHITE } from '@/constants/Colors';
+import { BRAND_COLOR, WHITE } from '@/constants/colors';
 import { router } from 'expo-router';
 import React from 'react';
 import {
@@ -15,14 +15,14 @@ import {
 const { width } = Dimensions.get('window');
 
 export default function StartScreen() {
-  const handleLogin = () => {
-    // 로그인 화면으로 이동
-    router.push('/login');
+  const handleStartApp = () => {
+    // Device ID 기반 익명 시스템으로 바로 메인 화면 이동
+    router.push('/main');
   };
 
-  const handleSignUp = () => {
-    // 회원가입 화면으로 이동
-    router.push('/register');
+  const handleLogin = () => {
+    // 기존 로그인 기능 (테스트용으로 유지)
+    router.push('/login');
   };
 
   return (
@@ -51,18 +51,18 @@ export default function StartScreen() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.button, styles.loginButton]}
-            onPress={handleLogin}
+            onPress={handleStartApp}
             activeOpacity={0.8}
           >
-            <Text style={styles.loginButtonText}>로그인</Text>
+            <Text style={styles.loginButtonText}>시작하기</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.button, styles.signUpButton]}
-            onPress={handleSignUp}
+            onPress={handleLogin}
             activeOpacity={0.8}
           >
-            <Text style={styles.signUpButtonText}>회원가입</Text>
+            <Text style={styles.signUpButtonText}>기존 로그인 (테스트용)</Text>
           </TouchableOpacity>
         </View>
       </View>
