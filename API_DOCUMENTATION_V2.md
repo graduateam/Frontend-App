@@ -157,15 +157,9 @@ setInterval(async () => {
 **Note:** 클라이언트는 위치만 전송하고, 서버에서 충돌 위험이 가장 높은 단일 객체 정보만 응답합니다.
 
 ### GET /api/cctv
-CCTV 위치 및 관측 영역 정보 조회 (동적 전송 빈도 조절용)
+전체 CCTV 위치 및 관측 영역 정보 조회 (접속 이후 최초 1회만 동작)
 
-**Query Parameters:**
-```
-lat: number (선택적) - 기준 위도
-lng: number (선택적) - 기준 경도  
-radius: number (선택적) - 반경(미터), 기본값: 5000
-include_inactive: boolean (선택적) - 비활성 CCTV 포함 여부, 기본값: false
-```
+**요청:** 파라미터 없음
 
 **Response:**
 ```json
@@ -199,9 +193,10 @@ include_inactive: boolean (선택적) - 비활성 CCTV 포함 여부, 기본값:
 ```
 
 **활용 방식:**
+- 앱 접속 시 전체 CCTV 데이터를 한 번에 수신
+- 클라이언트에서 사용자 위치와 CCTV 커버리지 영역을 비교
 - **CCTV 영역 내부**: 1초 간격 고빈도 위치 전송
-- **CCTV 영역 외부**: 5초 간격 저빈도 전송 또는 전송 중단
-- **Point-in-polygon 알고리즘**으로 사용자 위치가 관측 영역 내부인지 판별
+- **CCTV 영역 외부**: n초 간격 저빈도 전송 또는 전송 중단
 
 ---
 
@@ -252,9 +247,9 @@ let locationTimer = null;
 let isHighFrequencyMode = false;
 
 // 앱 시작 시 CCTV 영역 정보 로드
-const loadCCTVCoverage = async (userLocation) => {
+const loadCCTVCoverage = async () => {
   try {
-    const response = await fetch(`/api/cctv?lat=${userLocation.latitude}&lng=${userLocation.longitude}&radius=5000`);
+    const response = await fetch('/api/cctv');
     const result = await response.json();
     cctvCoverageAreas = result.cctv_coverage;
   } catch (error) {
@@ -280,9 +275,9 @@ const updateLocationFrequency = (userLocation) => {
     isHighFrequencyMode = true;
     console.log('CCTV 영역 진입: 고빈도 전송 모드');
   } else if (!isInCCTVArea && isHighFrequencyMode) {
-    // CCTV 영역 이탈: 저빈도 모드 (5초)
+    // CCTV 영역 이탈: 저빈도 모드 (n초)
     clearInterval(locationTimer);
-    locationTimer = setInterval(() => sendLocationUpdate(userLocation), 5000);
+    locationTimer = setInterval(() => sendLocationUpdate(userLocation), 5000); // 또는 전송 중단
     isHighFrequencyMode = false;
     console.log('CCTV 영역 이탈: 저빈도 전송 모드');
   }
