@@ -1,6 +1,6 @@
 // components/PasswordChangeModal.tsx
 import CustomInput from '@/components/CustomInput';
-import { BRAND_COLOR, Colors, WHITE } from '@/constants/Colors';
+import { BRAND_COLOR, Colors, WHITE } from '@/constants/colors';
 import { apiService } from '@/services/api';
 import { router } from 'expo-router';
 import React, { useState } from 'react';

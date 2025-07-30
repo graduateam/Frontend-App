@@ -1,5 +1,5 @@
 import CustomInput from '@/components/CustomInput';
-import { Colors } from '@/constants/Colors';
+import { Colors } from '@/constants/colors';
 import { CommonStyles } from '@/constants/CommonStyles';
 import { apiService } from '@/services/api';
 import { router } from 'expo-router';

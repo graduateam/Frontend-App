@@ -1,4 +1,4 @@
-import { BRAND_COLOR, Colors } from '@/constants/Colors';
+import { BRAND_COLOR, Colors } from '@/constants/colors';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     Animated,
