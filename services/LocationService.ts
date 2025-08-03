@@ -250,8 +250,9 @@ export class LocationService {
       return false;
     }
     
-    // 정확도가 너무 낮으면 (500m 이상) 유효하지 않음
-    if (location.accuracy > 500) {
+    // 에뮬레이터 고려하여 정확도 검증 완화 (10000m 이상만 제외)
+    if (location.accuracy > 10000) {
+      console.warn('[LocationService] 정확도가 너무 낮음:', location.accuracy);
       return false;
     }
     

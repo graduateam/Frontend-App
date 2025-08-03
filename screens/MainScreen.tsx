@@ -1,13 +1,15 @@
 import CollisionWarningComponent from '@/components/CollisionWarning';
 import DeleteAccountModal from '@/components/DeleteAccountModal';
+import DetectedObjectsList from '@/components/DetectedObjectsList';
 import MyPageSidebar from '@/components/MyPageSidebar';
 import NaverMapView from '@/components/NaverMapView';
 import PasswordChangeModal from '@/components/PasswordChangeModal';
 import SettingsSidebar from '@/components/SettingsSidebar';
 import { apiConfig } from '@/config/api.config';
 import { BRAND_COLOR, Colors, WHITE } from '@/constants/colors';
-import { apiService } from '@/services/api';
-import { CollisionWarning } from '@/types/api.types';
+import { realTimeLocationService, LocationUpdateResult } from '@/services/RealTimeLocationService';
+import { cctvCoverageService } from '@/services/CCTVCoverageService';
+import { CollisionWarning, DetectedObject } from '@/types/smart-road-api.types';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
@@ -36,53 +38,161 @@ export default function MainScreen() {
   const [showWarning, setShowWarning] = useState(false);
   const warningTimerRef = useRef<number | null>(null);
   
-  // API 모드 확인 (mock 모드에서만 테스트 활성화)
+  // 🆕 감지된 객체 관련 state
+  const [detectedObjects, setDetectedObjects] = useState<DetectedObject[]>([]);
+  const [showObjectsList, setShowObjectsList] = useState(false);
+  
+  // 실시간 위치 추적 상태
+  const [isLocationTracking, setIsLocationTracking] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [cctvLoaded, setCctvLoaded] = useState(false);
+  
+  // API 모드 확인
   const isMockMode = apiConfig.mode === 'mock';
   const insets = useSafeAreaInsets();
 
-  // Mock 모드에서 테스트용 충돌 경고 가져오기
-  const fetchTestCollisionWarning = async () => {
-    // mock 모드가 아니면 실행하지 않음
-    if (!isMockMode) return;
-    
+  // 실시간 위치 추적 시작
+  const startLocationTracking = async () => {
     try {
-      console.log('충돌 경고 테스트 요청');
-      const response = await apiService.getCollisionWarning({
-        latitude: 37.5666102,
-        longitude: 126.9783881,
-        heading: 0,
-        speed: 10,
-      });
-
-      if (response.success && response.data?.hasWarning && response.data.warning) {
-        // 이전 타이머가 있으면 취소
-        if (warningTimerRef.current) {
-          clearTimeout(warningTimerRef.current);
-          warningTimerRef.current = null;
-        }
-        
-        // 상태 업데이트
-        setCollisionWarning(response.data.warning);
-        setShowWarning(true);
-        
-        // 새로운 5초 타이머 설정
-        warningTimerRef.current = setTimeout(() => {
-          setShowWarning(false);
-          setCollisionWarning(null);
-          warningTimerRef.current = null;
-        }, 5000);
+      setLocationError(null);
+      console.log('🚀 실시간 위치 추적 시작...');
+      
+      const success = await realTimeLocationService.start();
+      if (success) {
+        setIsLocationTracking(true);
+        console.log('✅ 실시간 위치 추적 시작됨');
+      } else {
+        throw new Error('위치 추적을 시작할 수 없습니다');
       }
     } catch (error) {
-      console.error('충돌 경고 조회 실패:', error);
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+      console.error('❌ 위치 추적 시작 실패:', errorMessage);
+      setLocationError(errorMessage);
+      setIsLocationTracking(false);
     }
   };
 
-  // 컴포넌트 언마운트 시 타이머 정리
+  // 실시간 위치 추적 중지
+  const stopLocationTracking = () => {
+    console.log('⏹️ 실시간 위치 추적 중지...');
+    realTimeLocationService.stop();
+    setIsLocationTracking(false);
+  };
+
+  // CCTV 데이터 로드
+  const loadCCTVData = async () => {
+    try {
+      console.log('📡 CCTV 데이터 로드...');
+      await cctvCoverageService.loadCCTVCoverage();
+      setCctvLoaded(true);
+      console.log('✅ CCTV 데이터 로드 완료');
+    } catch (error) {
+      console.error('❌ CCTV 데이터 로드 실패:', error);
+    }
+  };
+
+  // Mock 모드에서 테스트용 충돌 경고 생성
+  const createTestCollisionWarning = () => {
+    if (!isMockMode) return;
+    
+    const testWarning: CollisionWarning = {
+      objectType: Math.random() > 0.5 ? 'vehicle' : 'person',
+      relativeDirection: ['front', 'front-left', 'front-right', 'left', 'right'][Math.floor(Math.random() * 5)] as any,
+      speed_kph: Math.random() * 20 + 5,
+      distance: Math.random() * 30 + 10,
+      ttc: Math.random() * 5 + 1,
+      collisionProbability: Math.random() * 0.8 + 0.2,
+      severity: Math.random() > 0.7 ? 'high' : Math.random() > 0.4 ? 'medium' : 'low',
+      timestamp: new Date().toISOString()
+    };
+
+    displayCollisionWarning(testWarning);
+  };
+
+  // 충돌 경고 표시
+  const displayCollisionWarning = (warning: CollisionWarning) => {
+    // 이전 타이머가 있으면 취소
+    if (warningTimerRef.current) {
+      clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = null;
+    }
+    
+    // 상태 업데이트
+    setCollisionWarning(warning);
+    setShowWarning(true);
+    
+    // 5초 후 자동 숨김
+    warningTimerRef.current = setTimeout(() => {
+      setShowWarning(false);
+      setCollisionWarning(null);
+      warningTimerRef.current = null;
+    }, 5000);
+  };
+
+  // 컴포넌트 초기화
   useEffect(() => {
+    console.log('🏗️ MainScreen 초기화...');
+    
+    // CCTV 데이터 최초 로드
+    loadCCTVData();
+    
+    // 실시간 위치 추적 시작 (API 모드에서만)
+    if (apiConfig.mode === 'api') {
+      startLocationTracking();
+    }
+
+    // 실시간 위치 서비스 콜백 등록
+    const handleLocationUpdate = (result: LocationUpdateResult) => {
+      if (result.success && result.collisionWarning) {
+        displayCollisionWarning(result.collisionWarning);
+      }
+      
+      // 🆕 감지된 객체 정보 처리
+      if (result.success && result.detectedObjects) {
+        setDetectedObjects(result.detectedObjects);
+        setShowObjectsList(result.detectedObjects.length > 0);
+      }
+    };
+
+    const handleCollisionWarning = (warning: CollisionWarning) => {
+      displayCollisionWarning(warning);
+    };
+
+    // 🆕 감지된 객체 콜백
+    const handleDetectedObjects = (objects: DetectedObject[]) => {
+      console.log('🎯 감지된 객체:', objects.length, '개');
+      setDetectedObjects(objects);
+      setShowObjectsList(objects.length > 0);
+    };
+
+    const handleLocationError = (error: string) => {
+      console.error('위치 서비스 오류:', error);
+      setLocationError(error);
+    };
+
+    // 콜백 등록
+    realTimeLocationService.addLocationUpdateCallback(handleLocationUpdate);
+    realTimeLocationService.addCollisionWarningCallback(handleCollisionWarning);
+    realTimeLocationService.addDetectedObjectsCallback(handleDetectedObjects); // 🆕 추가
+    realTimeLocationService.addErrorCallback(handleLocationError);
+
+    // 정리 함수
     return () => {
+      console.log('🧹 MainScreen 정리...');
+      
+      // 타이머 정리
       if (warningTimerRef.current) {
         clearTimeout(warningTimerRef.current);
       }
+      
+      // 위치 추적 중지
+      realTimeLocationService.stop();
+      
+      // 콜백 제거
+      realTimeLocationService.removeLocationUpdateCallback(handleLocationUpdate);
+      realTimeLocationService.removeCollisionWarningCallback(handleCollisionWarning);
+      realTimeLocationService.removeDetectedObjectsCallback(handleDetectedObjects); // 🆕 추가
+      realTimeLocationService.removeErrorCallback(handleLocationError);
     };
   }, []);
 
@@ -91,7 +201,15 @@ export default function MainScreen() {
     const handleKeyPress = (event: any) => {
       // 'W' 키를 누르면 충돌 경고 테스트 (mock 모드에서만)
       if ((event.key === 'w' || event.key === 'W') && isMockMode) {
-        fetchTestCollisionWarning();
+        createTestCollisionWarning();
+      }
+      // 'S' 키를 누르면 위치 추적 시작/중지
+      else if (event.key === 's' || event.key === 'S') {
+        if (isLocationTracking) {
+          stopLocationTracking();
+        } else {
+          startLocationTracking();
+        }
       }
     };
 
@@ -101,7 +219,7 @@ export default function MainScreen() {
         window.removeEventListener('keypress', handleKeyPress);
       };
     }
-  }, [isMockMode]);
+  }, [isMockMode, isLocationTracking]);
 
   const handleMyPage = () => {
     console.log('마이페이지 클릭');
@@ -198,12 +316,6 @@ export default function MainScreen() {
           resizeMode="contain"
         />
         
-        {/* Mock 모드 테스트 안내 (개발 모드 + mock 모드일 때만 표시) */}
-        {__DEV__ && isMockMode && (
-          <View style={styles.testHint}>
-            <Text style={styles.testHintText}>이 영역을 터치하면 충돌 경고 테스트</Text>
-          </View>
-        )}
       </>
     );
   };
@@ -220,7 +332,11 @@ export default function MainScreen() {
       >
         {/* 상단 지도 영역 */}
         <View style={styles.mapSection}>
-          <NaverMapView height={MAP_HEIGHT} />
+          <NaverMapView 
+            height={MAP_HEIGHT} 
+            collisionWarning={collisionWarning}
+            detectedObjects={detectedObjects}
+          />
         </View>
 
         {/* 하단 도로 배경 영역 */}
@@ -228,7 +344,7 @@ export default function MainScreen() {
           <TouchableOpacity 
             style={styles.roadSection}
             activeOpacity={1}
-            onPress={fetchTestCollisionWarning}
+            onPress={createTestCollisionWarning}
           >
             <RoadSectionContent />
           </TouchableOpacity>
@@ -244,6 +360,12 @@ export default function MainScreen() {
         warning={collisionWarning}
         visible={showWarning && !!collisionWarning}
       />
+
+      {/* 🆕 감지된 객체 목록 표시 (지도에 마커로 표시되므로 비활성화) */}
+      {/* <DetectedObjectsList 
+        objects={detectedObjects}
+        visible={showObjectsList && detectedObjects.length > 0}
+      /> */}
 
       {/* 하단 네비게이션 버튼 (고정) */}
       <View style={[
@@ -415,21 +537,4 @@ const styles = StyleSheet.create({
     color: WHITE,
   },
   
-  // 테스트 힌트
-  testHint: {
-    position: 'absolute',
-    top: 20,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  testHintText: {
-    fontSize: 12,
-    fontFamily: 'Pretendard-Regular',
-    color: WHITE,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
 });

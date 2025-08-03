@@ -68,6 +68,10 @@
       "eas": {
         "projectId": "3052110b-2aa1-4282-b4fe-ae955be549fb"
       }
+    },
+    "env": {
+      "EXPO_PUBLIC_API_MODE": "api",
+      "EXPO_PUBLIC_API_BASE_URL": "http://192.168.219.107:5000"
     }
   }
 }
