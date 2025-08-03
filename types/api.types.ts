@@ -171,17 +171,17 @@ export interface IApiService {
   getSettings(): Promise<Settings>;
   updateSettings(settings: Settings): Promise<{ success: boolean }>;
   
-  // 차량 정보 관련
-  getNearbyVehicles(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse>;
+  // 차량 정보 관련 (선택적)
+  getNearbyVehicles?(request: GetNearbyVehiclesRequest): Promise<GetNearbyVehiclesResponse>;
   
-  // 사람 정보 관련
-  getNearbyPeople(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse>;
+  // 사람 정보 관련 (선택적)
+  getNearbyPeople?(request: GetNearbyPeopleRequest): Promise<GetNearbyPeopleResponse>;
   
-  // 충돌 경고 관련
-  getCollisionWarning(request: GetCollisionWarningRequest): Promise<GetCollisionWarningResponse>;
+  // 충돌 경고 관련 (선택적)
+  getCollisionWarning?(request: GetCollisionWarningRequest): Promise<GetCollisionWarningResponse>;
   
-  // CCTV 관련
-  getCCTV(request: GetCCTVRequest): Promise<GetCCTVResponse>;
+  // CCTV 관련 (선택적)
+  getCCTV?(request: GetCCTVRequest): Promise<GetCCTVResponse>;
 }
 
 // CCTV 관련 타입

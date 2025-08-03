@@ -530,14 +530,12 @@ export class MockApiService extends BaseApiService {
       success: true,
       data: {
         warning: {
-          objectId: targetObject.id,
           objectType: isVehicle ? 'vehicle' : 'person',
-          direction: targetObject.heading,
           relativeDirection,
-          speed: targetObject.speed,
           speed_kph: targetObject.speed_kph,
           distance,
           ttc,
+          collisionProbability: ttc < 2 ? 0.9 : ttc < 3 ? 0.7 : ttc < 4 ? 0.5 : 0.3,
           severity,
           timestamp: new Date().toISOString(),
         },

@@ -1,9 +1,10 @@
 import { Colors } from '@/constants/colors';
-import { apiService } from '@/services/api';
-import { Person, Vehicle } from '@/types/api.types';
-import { NaverMapMarkerOverlay, NaverMapView } from '@mj-studio/react-native-naver-map';
+import { realTimeLocationService, LocationUpdateResult } from '@/services/RealTimeLocationService';
+import { cctvCoverageService } from '@/services/CCTVCoverageService';
+import { CollisionWarning, CCTV, DetectedObject } from '@/types/smart-road-api.types';
+import { NaverMapMarkerOverlay, NaverMapView, NaverMapPolygonOverlay } from '@mj-studio/react-native-naver-map';
 import * as Location from 'expo-location';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -17,14 +18,16 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MAP_HEIGHT = SCREEN_WIDTH; // 정사각형 지도
 
-// 기본 위치 (서울)
+// 기본 위치 (종합운동장_사거리 CCTV 영역)
 const DEFAULT_LOCATION = {
-  latitude: 37.5666102,
-  longitude: 126.9783881,
+  latitude: 37.67685,
+  longitude: 126.7458,
 };
 
 interface NaverMapProps {
   height?: number;
+  collisionWarning?: CollisionWarning | null;
+  detectedObjects?: DetectedObject[];
 }
 
 interface LocationData {
@@ -34,7 +37,7 @@ interface LocationData {
   heading: number | null; // degrees (0-360)
 }
 
-export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
+export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detectedObjects = [] }: NaverMapProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [location, setLocation] = useState(DEFAULT_LOCATION);
   const [locationData, setLocationData] = useState<LocationData>({
@@ -47,53 +50,70 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
   const [camera, setCamera] = useState({
     latitude: DEFAULT_LOCATION.latitude,
     longitude: DEFAULT_LOCATION.longitude,
-    zoom: 15,
+    zoom: 17, // CCTV 커버리지와 객체를 잘 볼 수 있도록 줌 레벨 증가
     tilt: 0,
     bearing: 0,
   });
-  const [nearbyVehicles, setNearbyVehicles] = useState<Vehicle[]>([]);
-  const [nearbyPeople, setNearbyPeople] = useState<Person[]>([]);
+  
+  // 🎯 줌 레벨별 표시 제어
+  const [currentZoom, setCurrentZoom] = useState(17);
+  const ZOOM_THRESHOLD = 15.5; // 15.5배율 이상에서는 커버리지, 미만에서는 아이콘
+  
+  // CCTV 및 충돌 경고 관련 상태
+  const [cctvCoverages, setCctvCoverages] = useState<CCTV[]>([]);
+  const [isInCctvArea, setIsInCctvArea] = useState(false);
+  const [currentLocationUpdate, setCurrentLocationUpdate] = useState<LocationUpdateResult | null>(null);
+  
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
-  const vehicleUpdateInterval = useRef<number | null>(null);
-  const peopleUpdateInterval = useRef<number | null>(null);
   const mapRef = useRef<any>(null);
+  // 폴리곤 ref들을 배열로 관리 (Hook 규칙 준수)
+  const polygonRefs = useRef<Array<any>>([]);
 
-  // API를 통해 주변 차량 정보 가져오기
-  const fetchNearbyVehicles = async (latitude: number, longitude: number) => {
+  // CCTV 커버리지 데이터 로드
+  const loadCCTVCoverage = async () => {
     try {
-      const response = await apiService.getNearbyVehicles({
-        latitude,
-        longitude,
-        radius: 500, // 500m 반경
-      });
-
-      if (response.success && response.data) {
-        setNearbyVehicles(response.data.vehicles);
-      }
+      const cctvs = await cctvCoverageService.loadCCTVCoverage();
+      setCctvCoverages(cctvs);
+      console.log('📡 지도에 CCTV 커버리지 로드 완료:', cctvs.length + '개');
     } catch (error) {
-      console.error('주변 차량 정보 조회 실패:', error);
+      console.error('❌ CCTV 커버리지 로드 실패:', error);
     }
   };
 
-  // API를 통해 주변 사람 정보 가져오기
-  const fetchNearbyPeople = async (latitude: number, longitude: number) => {
-    try {
-      const response = await apiService.getNearbyPeople({
-        latitude,
-        longitude,
-        radius: 500, // 500m 반경
-      });
+  // 현재 위치가 CCTV 커버리지 영역 내부인지 확인
+  const checkCCTVCoverage = (currentLocation: LocationData) => {
+    const locationForCheck = {
+      latitude: currentLocation.latitude,
+      longitude: currentLocation.longitude,
+      speed: currentLocation.speed || 0,
+      heading: currentLocation.heading || 0,
+      accuracy: 0,
+      timestamp: Date.now()
+    };
+    const result = cctvCoverageService.isLocationInCoverage(locationForCheck);
+    
+    // 🎨 상태 변화 감지 및 색상 변경 로그
+    const previousState = isInCctvArea;
+    setIsInCctvArea(result.isInCoverage);
 
-      if (response.success && response.data) {
-        setNearbyPeople(response.data.people);
+    if (previousState !== result.isInCoverage) {
+      if (result.isInCoverage) {
+        console.log('🟦 CCTV 영역 진입! 범위 색상이 파란색으로 변경됩니다.');
+        console.log('📹 모니터링 CCTV:', result.coveringCCTVs.map(c => c.name).join(', '));
+      } else {
+        console.log('🟧 CCTV 영역 벗어남! 범위 색상이 주황색으로 변경됩니다.');
       }
-    } catch (error) {
-      console.error('주변 사람 정보 조회 실패:', error);
     }
   };
 
-  // 위치 권한 요청 및 초기 위치 가져오기
+  // 컴포넌트 초기화
   useEffect(() => {
+    console.log('🗺️ NaverMapView 초기화...');
+    
+    // CCTV 커버리지 데이터 로드
+    loadCCTVCoverage();
+    
+    // 위치 권한 요청 및 초기 위치 가져오기
     (async () => {
       try {
         // 위치 권한 요청
@@ -104,26 +124,33 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
             accuracy: Location.Accuracy.Balanced,
           });
           
-          const newLocation = {
+          const newLocationData = {
             latitude: currentLocation.coords.latitude,
             longitude: currentLocation.coords.longitude,
-          };
-          
-          setLocation(newLocation);
-          setLocationData({
-            ...newLocation,
             speed: currentLocation.coords.speed,
             heading: currentLocation.coords.heading,
+          };
+          
+          setLocation({
+            latitude: newLocationData.latitude,
+            longitude: newLocationData.longitude,
           });
+          setLocationData(newLocationData);
+          
+          // CCTV 커버리지 확인
+          checkCCTVCoverage(newLocationData);
           
           // 초기 카메라 위치 설정
+          const initialZoom = 17;
           setCamera({
             latitude: currentLocation.coords.latitude,
             longitude: currentLocation.coords.longitude,
-            zoom: 15,
+            zoom: initialZoom,
             tilt: 0,
             bearing: 0,
           });
+          // 초기 줌 레벨도 동기화
+          setCurrentZoom(initialZoom);
         }
       } catch (error) {
         console.log('위치 가져오기 실패, 기본 위치 사용:', error);
@@ -133,81 +160,53 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
     })();
   }, []);
 
-  // 실시간 위치 추적
+  // 실시간 위치 서비스 연동
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.getForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        return;
-      }
-
-      // 실시간 위치 업데이트 구독
-      locationSubscription.current = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.BestForNavigation,
-          timeInterval: 1000, // 1초마다 업데이트
-          distanceInterval: 1, // 1미터 이동 시 업데이트
-        },
-        (location) => {
-          const newLocationData = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            speed: location.coords.speed,
-            heading: location.coords.heading,
-          };
-          
-          setLocationData(newLocationData);
-          
-          // 처음 위치를 받을 때만 지도 중심 이동
-          if (isFirstLocationUpdate) {
-            setCamera({
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              zoom: 16, // 적절한 축척으로 설정
-              tilt: 0,
-              bearing: 0,
-            });
-            setIsFirstLocationUpdate(false);
-            
-            // 처음 위치를 받을 때 주변 차량 정보도 가져오기
-            fetchNearbyVehicles(location.coords.latitude, location.coords.longitude);
-            fetchNearbyPeople(location.coords.latitude, location.coords.longitude);
-          }
-        }
-      );
-    })();
-
-    // 컴포넌트 언마운트 시 구독 해제
-    return () => {
-      if (locationSubscription.current) {
-        locationSubscription.current.remove();
-      }
-    };
-  }, []);
-
-  // 주기적으로 차량 및 사람 정보 업데이트
-  useEffect(() => {
-    if (!isLoading && locationData.latitude && locationData.longitude) {
-      // 1초마다 차량 정보 업데이트
-      vehicleUpdateInterval.current = setInterval(() => {
-        fetchNearbyVehicles(locationData.latitude, locationData.longitude);
-      }, 1000);
-      
-      // 1초마다 사람 정보 업데이트
-      peopleUpdateInterval.current = setInterval(() => {
-        fetchNearbyPeople(locationData.latitude, locationData.longitude);
-      }, 1000);
-    }
+    console.log('📍 실시간 위치 서비스와 지도 연동...');
     
-    return () => {
-      if (vehicleUpdateInterval.current) {
-        clearInterval(vehicleUpdateInterval.current);
-      }
-      if (peopleUpdateInterval.current) {
-        clearInterval(peopleUpdateInterval.current);
+    // 위치 업데이트 콜백
+    const handleLocationUpdate = (result: LocationUpdateResult) => {
+      if (result.success && result.location) {
+        const newLocationData = {
+          latitude: result.location.latitude,
+          longitude: result.location.longitude,
+          speed: result.location.speed,
+          heading: result.location.heading,
+        };
+        
+        setLocationData(newLocationData);
+        setCurrentLocationUpdate(result);
+        
+        // CCTV 커버리지 확인
+        checkCCTVCoverage(newLocationData);
+        
+        // 처음 위치를 받을 때만 지도 중심 이동
+        if (isFirstLocationUpdate) {
+          const updateZoom = 17;
+          setCamera({
+            latitude: result.location.latitude,
+            longitude: result.location.longitude,
+            zoom: updateZoom,
+            tilt: 0,
+            bearing: 0,
+          });
+          // 줌 레벨도 동기화
+          setCurrentZoom(updateZoom);
+          setIsFirstLocationUpdate(false);
+        }
       }
     };
-  }, [isLoading, locationData.latitude, locationData.longitude]);
+
+    // 콜백 등록
+    realTimeLocationService.addLocationUpdateCallback(handleLocationUpdate);
+
+    // 정리 함수
+    return () => {
+      console.log('🧹 지도 실시간 위치 서비스 연동 해제...');
+      realTimeLocationService.removeLocationUpdateCallback(handleLocationUpdate);
+    };
+  }, [isFirstLocationUpdate]);
+
 
   // 속도를 km/h로 변환
   const getSpeedInKmh = (speedInMs: number | null): string => {
@@ -222,6 +221,33 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
     const directions = ['북', '북동', '동', '남동', '남', '남서', '서', '북서'];
     const index = Math.round(heading / 45) % 8;
     return directions[index];
+  };
+
+  // 🆕 객체 타입에 따른 아이콘 선택
+  const getObjectIcon = (type: string, subtype?: string) => {
+    switch (type) {
+      case 'vehicle':
+        if (subtype === 'bus') return require('@/assets/images/icon_car_3.png');
+        return require('@/assets/images/icon_car.png');
+      case 'person':
+        return require('@/assets/images/icon_walking.png');
+      case 'bicycle':
+        return require('@/assets/images/icon_car_2.png'); // 자전거 아이콘이 없어서 대체
+      default:
+        return require('@/assets/images/icon_car.png');
+    }
+  };
+
+  // 🆕 충돌 위험도 기준 2단계 색상 (직관적인 빨강-초록 구분)
+  const getObjectRiskColor = (riskLevel: string) => {
+    // 위험한 상황 (critical, high) vs 안전한 상황 (medium, low, none)
+    const isDangerous = riskLevel === 'critical' || riskLevel === 'high';
+    
+    if (isDangerous) {
+      return '#FF3030'; // 위험: 선명한 빨강 (경고)
+    } else {
+      return '#228B22'; // 안전: 포레스트 그린 (안전함)
+    }
   };
 
   // 로딩 화면
@@ -245,13 +271,87 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
         isShowScaleBar={true}
         isShowZoomControls={Platform.OS === 'android'}
         isNightModeEnabled={false}
+        onCameraChanged={(args) => {
+          // 🛡️ camera 정보 안전성 검사
+          console.log('🔍 카메라 변경 이벤트:', args);
+          if (args && typeof args.zoom === 'number') {
+            console.log('🔍 현재 줌 레벨:', args.zoom, '| 임계값:', ZOOM_THRESHOLD);
+            setCurrentZoom(args.zoom);
+          } else if (args && args.camera && typeof args.camera.zoom === 'number') {
+            console.log('🔍 현재 줌 레벨 (camera):', args.camera.zoom, '| 임계값:', ZOOM_THRESHOLD);
+            setCurrentZoom(args.camera.zoom);
+          }
+        }}
       >
+        {/* 🆕 CCTV 커버리지 영역 표시 - 줌 레벨에 따른 조건부 표시 */}
+        {currentZoom >= ZOOM_THRESHOLD && cctvCoverages.map((cctv, index) => {
+          // 백엔드 좌표를 그대로 사용 (GeoJSON 형식: [경도, 위도])
+          const polygonCoords = cctv.coverage_area.coordinates[0].map(coord => ({
+            latitude: coord[1],  // 위도
+            longitude: coord[0]  // 경도
+          }));
+          
+          // 🐛 디버깅: 좌표 확인
+          if (cctv.cctv_id === 'cctv_001') {
+            console.log('🗺️ CCTV 폴리곤 좌표:', polygonCoords.map((p, i) => 
+              `${i+1}: 위도${p.latitude}, 경도${p.longitude}`
+            ).join(' | '));
+          }
+          
+          // 🎨 동적 색상 시스템: 사용자 위치에 따른 색상 변경
+          const getPolygonColors = () => {
+            if (isInCctvArea) {
+              // 사용자가 CCTV 범위 안에 있을 때: 파란색 (모니터링 중)
+              return {
+                fillColor: "rgba(0, 123, 255, 0.25)",      // 투명도만 낮춘 파란색
+                outlineColor: "rgba(0, 123, 255, 0.7)",    // 투명도 낮춘 파란색 테두리
+                outlineWidth: 3                            // 더 두꺼운 테두리
+              };
+            } else {
+              // 사용자가 CCTV 범위 밖에 있을 때: 주황색 (일반 상태)
+              return {
+                fillColor: "rgba(255, 127, 0, 0.3)",       // 기본 주황색
+                outlineColor: "rgba(255, 127, 0, 0.8)",    // 주황색 테두리
+                outlineWidth: 2                            // 일반 테두리
+              };
+            }
+          };
+          
+          const colors = getPolygonColors();
+          
+          return (
+            <NaverMapPolygonOverlay
+              key={`polygon_${cctv.cctv_id}`}
+              coords={polygonCoords}
+              color={colors.fillColor}
+              outlineColor={colors.outlineColor}
+              outlineWidth={colors.outlineWidth}
+            />
+          );
+        })}
+
+        {/* CCTV 위치 마커들 - 줌 레벨에 따른 조건부 표시 */}
+        {currentZoom < ZOOM_THRESHOLD && cctvCoverages.map((cctv) => (
+          <NaverMapMarkerOverlay
+            key={`marker_${cctv.cctv_id}`}
+            latitude={cctv.location.latitude}
+            longitude={cctv.location.longitude}
+            width={30}
+            height={30}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.cctvMarkerContainer}>
+              <Text style={styles.cctvMarkerText}>📹</Text>
+            </View>
+          </NaverMapMarkerOverlay>
+        ))}
+
         {/* 현재 위치 마커 */}
         <NaverMapMarkerOverlay
           latitude={locationData.latitude}
           longitude={locationData.longitude}
-          width={30}
-          height={30}
+          width={35}
+          height={35}
           anchor={{ x: 0.5, y: 0.5 }}
         >
           <View style={styles.markerContainer}>
@@ -265,71 +365,57 @@ export default function NaverMap({ height = MAP_HEIGHT }: NaverMapProps) {
             />
           </View>
         </NaverMapMarkerOverlay>
-        
-        {/* 주변 차량 마커들 */}
-        {nearbyVehicles.map((vehicle) => (
+
+        {/* 충돌 경고 마커 (충돌 위험이 있을 때만 표시) */}
+        {collisionWarning && (
           <NaverMapMarkerOverlay
-            key={vehicle.id}
-            latitude={vehicle.latitude}
-            longitude={vehicle.longitude}
-            width={25}
-            height={25}
+            latitude={locationData.latitude}
+            longitude={locationData.longitude}
+            width={50}
+            height={50}
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <View style={styles.vehicleMarkerContainer}>
+            <View style={styles.warningMarkerContainer}>
+              <View style={styles.warningPulse} />
               <Image
-                source={require('@/assets/images/icon_car_2.png')}
-                style={styles.vehicleIcon}
+                source={collisionWarning.objectType === 'vehicle' 
+                  ? require('@/assets/images/icon_car_3.png')
+                  : require('@/assets/images/icon_walking.png')
+                }
+                style={styles.warningIcon}
                 resizeMode="contain"
               />
             </View>
           </NaverMapMarkerOverlay>
-        ))}
-        
-        {/* 주변 사람 마커들 */}
-        {nearbyPeople.map((person) => (
+        )}
+
+        {/* 🆕 감지된 객체 마커들 - 작은 원형 (줌 레벨에 따른 조건부 표시) */}
+        {currentZoom >= ZOOM_THRESHOLD && detectedObjects.map((obj) => (
           <NaverMapMarkerOverlay
-            key={person.id}
-            latitude={person.latitude}
-            longitude={person.longitude}
-            width={25}
-            height={25}
+            key={obj.id}
+            latitude={obj.position.coordinates?.latitude || locationData.latitude}
+            longitude={obj.position.coordinates?.longitude || locationData.longitude}
+            width={18}
+            height={18}
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <View style={styles.personMarkerContainer}>
-              <Image
-                source={require('@/assets/images/icon_user_2.png')}
-                style={styles.personIcon}
-                resizeMode="contain"
-              />
+            <View style={[
+              styles.detectedObjectCircle,
+              { backgroundColor: getObjectRiskColor(obj.risk_assessment.risk_level) }
+            ]}>
+              {/* 위험도가 높은 경우 펄스 효과 */}
+              {(obj.risk_assessment.risk_level === 'high' || obj.risk_assessment.risk_level === 'critical') && (
+                <View style={[
+                  styles.detectedObjectPulse,
+                  { borderColor: getObjectRiskColor(obj.risk_assessment.risk_level) }
+                ]} />
+              )}
             </View>
           </NaverMapMarkerOverlay>
         ))}
       </NaverMapView>
 
-      {/* 속도 및 방향 정보 표시 */}
-      <View style={styles.infoContainer}>
-        <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>속도</Text>
-          <Text style={styles.infoValue}>{getSpeedInKmh(locationData.speed)} km/h</Text>
-        </View>
-        <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>방향</Text>
-          <Text style={styles.infoValue}>{getCompassDirection(locationData.heading)}</Text>
-        </View>
-        {nearbyVehicles.length > 0 && (
-          <View style={styles.infoBox}>
-            <Text style={styles.infoLabel}>차량</Text>
-            <Text style={styles.infoValue}>{nearbyVehicles.length}대</Text>
-          </View>
-        )}
-        {nearbyPeople.length > 0 && (
-          <View style={styles.infoBox}>
-            <Text style={styles.infoLabel}>사람</Text>
-            <Text style={styles.infoValue}>{nearbyPeople.length}명</Text>
-          </View>
-        )}
-      </View>
+
     </View>
   );
 }
@@ -355,73 +441,81 @@ const styles = StyleSheet.create({
     color: Colors.neutral.gray50,
   },
   
-  // 마커 스타일
+  // 마커 스타일 (항상 파란색으로 고정)
   markerContainer: {
-    width: 30,
-    height: 30,
+    width: 35,
+    height: 35,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 100, 255, 0.1)',
+    borderRadius: 17.5,
+    borderWidth: 2,
+    borderColor: Colors.primary.darkBlue,
   },
   triangleIcon: {
+    width: 25,
+    height: 25,
+    tintColor: Colors.primary.darkBlue,
+  },
+  
+  // CCTV 마커 스타일
+  cctvMarkerContainer: {
     width: 30,
     height: 30,
-    tintColor: Colors.primary.darkRed, // 진한 빨강색으로 변경
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 100, 255, 0.8)',
+    borderRadius: 15,
+  },
+  cctvMarkerText: {
+    fontSize: 14,
   },
   
-  // 차량 마커 스타일
-  vehicleMarkerContainer: {
-    width: 25,
-    height: 25,
+  // 충돌 경고 마커 스타일
+  warningMarkerContainer: {
+    width: 50,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  vehicleIcon: {
-    width: 25,
-    height: 25,
-    tintColor: Colors.primary.darkBlue, // 진한 파란색
-  },
-  
-  // 사람 마커 스타일
-  personMarkerContainer: {
-    width: 25,
-    height: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  personIcon: {
-    width: 25,
-    height: 25,
-    tintColor: Colors.primary.darkYellow, // 진한 노란색
-  },
-  
-  // 정보 표시
-  infoContainer: {
+  warningPulse: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    flexDirection: 'row',
-    gap: 10,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 00, 0, 0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 0, 0, 0.6)',
   },
-  infoBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+  warningIcon: {
+    width: 30,
+    height: 30,
+    tintColor: Colors.primary.darkRed,
+  },
+  
+
+  // 🆕 감지된 객체 마커 스타일 - 작은 원형
+  detectedObjectCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
     elevation: 3,
   },
-  infoLabel: {
-    fontSize: 12,
-    fontFamily: 'Pretendard-Regular',
-    color: Colors.neutral.gray50,
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontFamily: 'Pretendard-SemiBold',
-    color: Colors.neutral.black,
+  detectedObjectPulse: {
+    position: 'absolute',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+    opacity: 0.6,
+    top: -4,
+    left: -4,
   },
 });
