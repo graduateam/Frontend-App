@@ -24,7 +24,7 @@ export class ApiConnectionTest {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = apiConfig.baseUrl || 'http://localhost:5000';
+    this.baseUrl = apiConfig.baseUrl || 'http://3.38.218.29:5000';
   }
 
   /**

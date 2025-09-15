@@ -22,7 +22,7 @@ export class SmartRoadApiService implements ISmartRoadApiService {
     // API 모드에 따른 기본 URL 설정
     if (apiConfig.mode === 'api') {
       // 실제 Flask 서버 URL (개발: localhost, 프로덕션: AWS 도메인)
-      this.baseUrl = apiConfig.baseUrl || 'http://192.168.219.100:5000';
+      this.baseUrl = apiConfig.baseUrl || 'http://3.38.218.29:5000';
     } else {
       // Mock/Dummy 모드에서는 기본 URL 사용
       this.baseUrl = 'http://localhost:5000';

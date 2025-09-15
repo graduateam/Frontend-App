@@ -354,10 +354,11 @@ export default function MainScreen() {
       </ScrollView>
 
       {/* 충돌 경고 표시 */}
-      <CollisionWarningComponent 
+      <CollisionWarningComponent
         warning={collisionWarning}
         visible={showWarning && !!collisionWarning}
       />
+
 
       {/* 🆕 감지된 객체 목록 표시 (지도에 마커로 표시되므로 비활성화) */}
       {/* <DetectedObjectsList 
