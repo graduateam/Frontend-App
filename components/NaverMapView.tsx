@@ -195,23 +195,21 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
           bearing: result.location.heading || 0, // 사용자 방향에 따라 지도 회전
         };
         
-        // 🎬 위치 추적 모드일 때만 카메라 이동
-        if (isFollowingUser) {
-          if (mapRef.current && !isFirstLocationUpdate) {
-            // 위치 추적 중에는 부드러운 애니메이션 사용
-            try {
-              mapRef.current.animateCamera(newCameraPosition, {
-                duration: 1000, // 1초 애니메이션
-                easing: 'easeInOut', // 부드러운 easing
-              });
-            } catch (error) {
-              console.log('애니메이션 실패, 기본 이동 사용:', error);
-              setCamera(newCameraPosition);
-            }
-          } else {
-            // 첫 위치 업데이트는 즉시 이동
+        // 🎬 항상 카메라를 사용자 위치로 이동 (위치와 방향 추적)
+        if (mapRef.current && !isFirstLocationUpdate) {
+          // 위치 추적 중에는 부드러운 애니메이션 사용
+          try {
+            mapRef.current.animateCamera(newCameraPosition, {
+              duration: 1000, // 1초 애니메이션
+              easing: 'easeInOut', // 부드러운 easing
+            });
+          } catch (error) {
+            console.log('애니메이션 실패, 기본 이동 사용:', error);
             setCamera(newCameraPosition);
           }
+        } else {
+          // 첫 위치 업데이트는 즉시 이동
+          setCamera(newCameraPosition);
         }
         
         // 일반 위치 업데이트 (위치 추적 모드가 아닐 때)
@@ -255,10 +253,10 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
   };
 
   // 🎯 위치 추적 모드 토글 함수
-  // 🎯 위치 추적 모드로 돌아가는 함수
-  const returnToLocationTracking = useCallback(() => {
+  // 🎯 현재 위치로 즉시 이동하는 함수
+  const moveToCurrentLocation = useCallback(() => {
     if (locationData && mapRef.current) {
-      const recenterPosition = {
+      const currentPosition = {
         latitude: locationData.latitude,
         longitude: locationData.longitude,
         zoom: currentZoom,
@@ -267,18 +265,14 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
       };
       
       try {
-        mapRef.current.animateCamera(recenterPosition, {
+        mapRef.current.animateCamera(currentPosition, {
           duration: 800,
           easing: 'easeInOut',
         });
-        console.log('🎯 위치 추적 모드로 복귀');
-        setIsFollowingUser(true);
-        setIsMapManuallyMoved(false);
+        console.log('🎯 현재 위치로 이동');
       } catch (error) {
-        console.log('위치 추적 모드 복귀 실패:', error);
-        setCamera(recenterPosition);
-        setIsFollowingUser(true);
-        setIsMapManuallyMoved(false);
+        console.log('현재 위치 이동 실패:', error);
+        setCamera(currentPosition);
       }
     }
   }, [locationData, currentZoom]);
@@ -342,13 +336,7 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
             setCurrentZoom(args.camera.zoom);
           }
           
-          // 🎯 사용자가 수동으로 지도를 움직였는지 감지
-          if (isFollowingUser && args && (args.latitude || args.longitude || (args.camera && (args.camera.latitude || args.camera.longitude)))) {
-            // 위치 추적 중인데 카메라가 변경되면 사용자가 수동으로 움직인 것으로 판단
-            console.log('🔄 사용자 수동 지도 이동 감지 - 추적 모드 비활성화');
-            setIsFollowingUser(false);
-            setIsMapManuallyMoved(true);
-          }
+          // 🎯 위치 추적이 항상 활성화되어 있으므로 수동 이동 감지 비활성화
         }}
       >
         {/* 🆕 CCTV 커버리지 영역 표시 - 줌 레벨에 따른 조건부 표시 */}
@@ -484,7 +472,7 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
       <View style={styles.floatingButtonContainer}>
         <TouchableOpacity
           style={styles.returnToLocationButton}
-          onPress={returnToLocationTracking}
+          onPress={moveToCurrentLocation}
           activeOpacity={0.7}
         >
           <Text style={styles.returnButtonIcon}>🎯</Text>
