@@ -480,18 +480,16 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
         ))}
       </NaverMapView>
 
-      {/* 🎯 위치 추적 복귀 버튼 (지도를 수동으로 움직였을 때만 표시) */}
-      {isMapManuallyMoved && !isFollowingUser && (
-        <View style={styles.floatingButtonContainer}>
-          <TouchableOpacity
-            style={styles.returnToLocationButton}
-            onPress={returnToLocationTracking}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.returnButtonIcon}>📍</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* 🎯 위치 추적 버튼 (상시 표시) */}
+      <View style={styles.floatingButtonContainer}>
+        <TouchableOpacity
+          style={styles.returnToLocationButton}
+          onPress={returnToLocationTracking}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.returnButtonIcon}>🎯</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -606,9 +604,9 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#005BB5',
+    borderColor: '#E35500',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -620,6 +618,6 @@ const styles = StyleSheet.create({
   returnButtonIcon: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#E35500',
   },
 });
