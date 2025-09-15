@@ -47,7 +47,7 @@ export default function RegisterSuccessScreen() {
             onPress={handleStart}
             activeOpacity={0.8}
           >
-            <Text style={styles.startButtonText}>시작하기</Text>
+            <Text style={styles.startButtonText}>로그인</Text>
           </TouchableOpacity>
         </View>
       </View>

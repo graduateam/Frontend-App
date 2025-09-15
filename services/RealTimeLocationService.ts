@@ -33,10 +33,10 @@ export class RealTimeLocationService {
   private isRunning = false;
   
   private config: RealTimeLocationConfig = {
-    intervalMs: 1000,          // 1초 간격
+    intervalMs: 1000,          // 1초 간격 (실시간성 우선)
     enableRetry: true,
-    maxRetries: 3,
-    retryDelayMs: 2000
+    maxRetries: 2,             // 빠른 재시도
+    retryDelayMs: 500          // 짧은 재시도 지연
   };
 
   // 콜백 함수들
@@ -123,7 +123,7 @@ export class RealTimeLocationService {
       this.startPeriodicUpdates();
       this.isRunning = true;
 
-      console.log('✅ 실시간 위치 추적 시작됨');
+      console.log('🚀 실시간 위치 추적 활성화 (1초 간격)');
       return true;
 
     } catch (error) {
@@ -253,7 +253,7 @@ export class RealTimeLocationService {
   }
 
   /**
-   * 위치 업데이트 오류 처리
+   * 위치 업데이트 오류 처리 (조용한 백그라운드 처리)
    */
   private handleLocationUpdateError(error: unknown): void {
     const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
@@ -264,15 +264,16 @@ export class RealTimeLocationService {
     this.stats.lastFailureTime = new Date();
     this.stats.consecutiveFailures++;
 
-    console.error('❌ 위치 업데이트 실패:', errorMessage);
+    // 조용한 로깅 (사용자에게 노출되지 않음)
+    console.warn('🔄 백그라운드 네트워크 재시도:', errorMessage);
 
-    // 연속 실패가 많으면 경고
-    if (this.stats.consecutiveFailures >= 5) {
-      console.warn('⚠️ 연속 실패 횟수가 많습니다. 네트워크 연결을 확인하세요.');
+    // 연속 실패가 많아도 조용히 처리
+    if (this.stats.consecutiveFailures >= 10) {
+      console.warn('📊 백그라운드 연결 상태: 불안정 (재시도 계속 중)');
     }
 
-    // 오류 콜백 호출
-    this.notifyError(errorMessage);
+    // 사용자에게는 오류를 알리지 않음 (UX 우선)
+    // this.notifyError(errorMessage); // 주석 처리
   }
 
   /**

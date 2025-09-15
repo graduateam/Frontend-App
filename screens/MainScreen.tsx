@@ -166,7 +166,8 @@ export default function MainScreen() {
     };
 
     const handleLocationError = (error: string) => {
-      console.error('위치 서비스 오류:', error);
+      // 에러 로그 제거 (네트워크 에러 팝업 방지)
+      // console.error('위치 서비스 오류:', error);
       setLocationError(error);
     };
 
@@ -295,10 +296,7 @@ export default function MainScreen() {
         {/* 충돌 경고 배경 이미지 (벽 이미지보다 아래 레이어) */}
         {showWarning && warningImageStyle && collisionWarning && (
           <Image
-            source={collisionWarning.objectType === 'vehicle' 
-              ? require('@/assets/images/icon_car_3.png')  // 차량 아이콘
-              : require('@/assets/images/icon_walking.png')  // 보행자 아이콘
-            }
+            source={require('@/assets/images/icon_car_3.png')} // 차량 탐지 전용 - 모든 객체를 차량으로 처리
             style={warningImageStyle}
             resizeMode="contain"
           />

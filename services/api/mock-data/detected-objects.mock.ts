@@ -72,43 +72,10 @@ export const mockDetectedObjects: DetectedObject[] = [
     }
   },
 
-  // 세 번째 객체: 보행자 (전방, 주의 필요)
-  {
-    id: 'obj_person_001',
-    type: 'person',
-    subtype: 'adult',
-    position: {
-      relativeDirection: 'front',
-      distance_m: 12.0,
-      coordinates: {
-        latitude: 37.5666120,
-        longitude: 126.9783890
-      }
-    },
-    motion: {
-      speed_kph: 4.5,
-      direction_degrees: 45,
-      is_stationary: false,
-      is_approaching: true
-    },
-    risk_assessment: {
-      risk_level: 'medium',
-      collision_probability: 0.15,
-      ttc: 8.5
-    },
-    metadata: {
-      detection_confidence: 0.87,
-      first_seen: '2025-01-25T10:29:50.000Z',
-      last_updated: '2025-01-25T10:30:00.123Z',
-      camera_id: 'cam_front_001',
-      tracking_id: 'track_person_001'
-    }
-  },
-
-  // 네 번째 객체: 자전거 (좌전방, 안전)
+  // 세 번째 객체: 자전거 (좌전방, 안전) - 차량으로 분류
   {
     id: 'obj_bicycle_001',
-    type: 'bicycle',
+    type: 'vehicle',
     subtype: 'bicycle',
     position: {
       relativeDirection: 'front-left',

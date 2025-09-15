@@ -23,16 +23,17 @@ interface ObjectItemProps {
 }
 
 function ObjectItem({ object }: ObjectItemProps) {
-  // 객체 타입에 따른 아이콘
+  // 객체 타입에 따른 아이콘 - 차량 탐지 전용
   const getObjectIcon = (type: string, subtype?: string) => {
     switch (type) {
       case 'vehicle':
         if (subtype === 'bus') return require('@/assets/images/icon_car_3.png');
+        if (subtype === 'bicycle') return require('@/assets/images/icon_car_2.png');
         return require('@/assets/images/icon_car.png');
-      case 'person':
-        return require('@/assets/images/icon_walking.png');
+      case 'person': // 보행자도 차량 아이콘으로 처리 (차량 탐지 전용)
+        return require('@/assets/images/icon_car.png');
       case 'bicycle':
-        return require('@/assets/images/icon_car_2.png'); // 자전거 아이콘이 없어서 대체
+        return require('@/assets/images/icon_car_2.png');
       default:
         return require('@/assets/images/icon_car.png');
     }
@@ -65,7 +66,7 @@ function ObjectItem({ object }: ObjectItemProps) {
     return directions[direction] || '전방';
   };
 
-  // 객체 타입 한글 변환
+  // 객체 타입 한글 변환 - 차량 탐지 전용
   const getObjectTypeText = (type: string, subtype?: string) => {
     if (type === 'vehicle') {
       switch (subtype) {
@@ -73,13 +74,15 @@ function ObjectItem({ object }: ObjectItemProps) {
         case 'truck': return '트럭';
         case 'car': return '승용차';
         case 'motorcycle': return '오토바이';
+        case 'bicycle': return '자전거';
         default: return '차량';
       }
     }
+    // 모든 객체를 차량으로 분류 (차량 탐지 전용)
     switch (type) {
-      case 'person': return '보행자';
+      case 'person': return '차량'; // 보행자도 차량으로 표시
       case 'bicycle': return '자전거';
-      default: return '객체';
+      default: return '차량';
     }
   };
 

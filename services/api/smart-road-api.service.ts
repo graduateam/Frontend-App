@@ -14,6 +14,9 @@ import {
  */
 export class SmartRoadApiService implements ISmartRoadApiService {
   private baseUrl: string;
+  private isRequestInProgress: boolean = false; // 단순한 요청 진행 상태
+  private lastRequestTime: number = 0; // 마지막 요청 시간 (Throttling)
+  private readonly MIN_REQUEST_INTERVAL = 1000; // 최소 요청 간격 (1초로 증가)
 
   constructor() {
     // API 모드에 따른 기본 URL 설정
@@ -25,84 +28,112 @@ export class SmartRoadApiService implements ISmartRoadApiService {
       this.baseUrl = 'http://localhost:5000';
     }
 
-    console.log('🔧 SmartRoadApiService 초기화:', {
+    console.log('🔧 SmartRoadApiService 초기화 (Native Fetch):', {
       mode: apiConfig.mode,
       baseUrl: this.baseUrl
     });
   }
 
   /**
-   * HTTP 요청 공통 처리 함수
+   * Android Network Security 문제 해결을 위한 강화된 HTTP 요청 함수
    */
   private async makeRequest<T>(
     endpoint: string, 
-    options: RequestInit = {}
+    options: { method?: string; body?: any; headers?: Record<string, string> } = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
-    // 기본 헤더 설정
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-
-    const requestOptions: RequestInit = {
-      ...options,
+    const requestInit: RequestInit = {
+      method: options.method || 'GET',
       headers: {
-        ...defaultHeaders,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache',
         ...options.headers,
       },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      // Android Network Security 문제 해결을 위한 설정
+      cache: 'no-cache',
+      mode: 'cors',
+      credentials: 'omit'
     };
 
-    console.log('🌐 API 요청:', {
-      method: requestOptions.method || 'GET',
-      url,
-      body: requestOptions.body
-    });
+    // 3회 재시도 로직 (Android Network Security 간헐적 차단 대응)
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        // Promise.race를 사용한 타임아웃 처리 (Android 네트워크 hang 방지)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 10000); // 10초 타임아웃
+        });
 
-    try {
-      const response = await fetch(url, requestOptions);
-      const data = await response.json();
+        const fetchPromise = fetch(url, requestInit);
+        const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+        
+        const text = await response.text();
 
-      console.log('📨 API 응답:', {
-        status: response.status,
-        ok: response.ok,
-        data
-      });
-
-      if (!response.ok) {
-        // HTTP 오류 상태 처리
-        if (data.success === false && data.error) {
-          throw new ApiError(data as ErrorResponse);
-        } else {
+        if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-      }
 
-      return data;
-    } catch (error) {
-      console.error('❌ API 요청 실패:', error);
-      
-      if (error instanceof ApiError) {
-        throw error;
-      }
+        const data = JSON.parse(text);
 
-      // 네트워크 오류 등 처리
-      throw new Error(`네트워크 오류: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+        // 성공 시에는 간단한 로그만
+        if (attempt > 1) {
+          console.log(`✅ 네트워크 복구됨 (${attempt}번째 시도)`);
+        }
+
+        return data;
+      } catch (error: any) {
+        // 백그라운드 재시도 로그 최소화
+        if (attempt === 3) {
+          console.warn(`⚠️ 네트워크 문제 (3회 재시도 실패)`);
+        }
+        
+        // 마지막 시도가 아니면 잠시 대기 후 재시도
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, attempt * 500));
+          continue;
+        }
+        
+        throw new Error(`일시적 네트워크 문제 (백그라운드 재시도 중)`);
+      }
     }
   }
 
   /**
    * 실시간 위치 전송 및 충돌 감지
-   * 🆕 목 데이터에서 감지된 객체 정보도 함께 반환
+   * AWS 서버 Connection: close 정책에 최적화
    */
   async sendLocation(request: LocationRequest): Promise<LocationResponse> {
+    // 1. 이미 요청이 진행 중이면 대기
+    if (this.isRequestInProgress) {
+      console.log('🔄 다른 요청 진행 중, 무시');
+      throw new Error('다른 요청이 진행 중입니다');
+    }
+
+    // 2. Throttling: 너무 빈번한 요청 방지 (1초 간격)
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
+      const waitTime = this.MIN_REQUEST_INTERVAL - timeSinceLastRequest;
+      console.log(`⏱️ 요청 간격 제한: ${waitTime}ms 대기`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+
+    this.isRequestInProgress = true;
+    this.lastRequestTime = Date.now();
+
     try {
+      console.log('🚀 단일 위치 요청 시작');
+      
       // API 호출
       const response = await this.makeRequest<LocationResponse>('/api/location', {
         method: 'POST',
-        body: JSON.stringify(request),
+        body: request,
       });
+
+      console.log('✅ 위치 요청 성공');
 
       // 🆕 목 환경에서는 감지된 객체 데이터 추가
       if (apiConfig.mode === 'mock' || apiConfig.mode === 'dummy') {
@@ -116,8 +147,13 @@ export class SmartRoadApiService implements ISmartRoadApiService {
 
       return response;
     } catch (error) {
-      console.error('❌ Smart Road API sendLocation 실패:', error);
+      // 에러 로그 제거 (네트워크 에러 팝업 방지)
+      // console.error('❌ Smart Road API sendLocation 실패:', error);
       throw error;
+    } finally {
+      // 요청 상태 해제
+      this.isRequestInProgress = false;
+      console.log('🏁 위치 요청 완료');
     }
   }
 

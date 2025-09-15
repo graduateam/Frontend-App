@@ -100,7 +100,7 @@ export default function CollisionWarningComponent({ warning, visible }: Collisio
   };
 
   const severityColor = getSeverityColor(warning.severity);
-  const objectTypeText = warning.objectType === 'vehicle' ? '차량' : '보행자';
+  const objectTypeText = '차량'; // 차량 탐지 전용 - 보행자 제거
 
   return (
     <Animated.View 

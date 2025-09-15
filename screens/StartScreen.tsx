@@ -62,7 +62,7 @@ export default function StartScreen() {
             onPress={handleLogin}
             activeOpacity={0.8}
           >
-            <Text style={styles.signUpButtonText}>기존 로그인 (테스트용)</Text>
+            <Text style={styles.signUpButtonText}>회원가입</Text>
           </TouchableOpacity>
         </View>
       </View>

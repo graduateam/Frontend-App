@@ -20,6 +20,7 @@ export class CCTVCoverageService {
   private cctvData: CCTV[] = [];
   private isLoaded = false;
   private loadPromise: Promise<CCTV[]> | null = null;
+  private retryTimer: NodeJS.Timeout | null = null;
   
   private stats: CCTVCoverageStats = {
     totalCCTVs: 0,
@@ -72,57 +73,83 @@ export class CCTVCoverageService {
   }
 
   /**
-   * 실제 로드 수행
+   * 실제 로드 수행 (자동 재시도 포함)
    */
   private async performLoad(): Promise<CCTV[]> {
-    try {
-      const response: CCTVResponse = await smartRoadApiService.getCCTVCoverage();
-      
-      if (!response.success) {
-        throw new Error('CCTV 데이터 로드에 실패했습니다');
+    const maxRetries = 3;
+    const retryDelayMs = 2000;
+    let lastError: Error;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 CCTV 데이터 로드 시도 ${attempt}/${maxRetries}...`);
+        
+        const response: CCTVResponse = await smartRoadApiService.getCCTVCoverage();
+        
+        if (!response.success) {
+          throw new Error('CCTV 데이터 로드에 실패했습니다');
+        }
+
+        this.cctvData = response.cctv_coverage || [];
+        this.isLoaded = true;
+        
+        // 통계 업데이트
+        this.stats = {
+          totalCCTVs: response.total_count,
+          loadedAt: new Date(),
+          lastUpdateAt: new Date(),
+          isLoaded: true
+        };
+
+        console.log(`✅ CCTV 커버리지 데이터 로드 완료 (${attempt}번째 시도):`, {
+          총개수: response.total_count,
+          로드된개수: this.cctvData.length,
+          서버타임스탬프: response.server_timestamp
+        });
+
+        // 🐛 디버깅: 받아온 CCTV 좌표 출력
+        if (this.cctvData.length > 0) {
+          const firstCctv = this.cctvData[0];
+          console.log('🗺️ 첫 번째 CCTV 좌표 (백엔드에서 받아온 원본):', 
+            firstCctv.coverage_area.coordinates[0].map((coord, i) => 
+              `${i+1}: [경도${coord[0]}, 위도${coord[1]}]`
+            ).join(' | ')
+          );
+        }
+
+        // 로드 완료 콜백 호출
+        this.notifyLoadComplete(this.cctvData);
+
+        // 성공시 주기적 재시도 중지
+        this.stopPeriodicRetry();
+
+        return this.cctvData;
+
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('알 수 없는 오류');
+        console.warn(`⚠️ CCTV 로드 시도 ${attempt}/${maxRetries} 실패:`, lastError.message);
+
+        // 마지막 시도가 아니면 재시도
+        if (attempt < maxRetries) {
+          console.log(`⏳ ${retryDelayMs}ms 후 재시도...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+          continue;
+        }
       }
-
-      this.cctvData = response.cctv_coverage || [];
-      this.isLoaded = true;
-      
-      // 통계 업데이트
-      this.stats = {
-        totalCCTVs: response.total_count,
-        loadedAt: new Date(),
-        lastUpdateAt: new Date(),
-        isLoaded: true
-      };
-
-      console.log('✅ CCTV 커버리지 데이터 로드 완료:', {
-        총개수: response.total_count,
-        로드된개수: this.cctvData.length,
-        서버타임스탬프: response.server_timestamp
-      });
-
-      // 🐛 디버깅: 받아온 CCTV 좌표 출력
-      if (this.cctvData.length > 0) {
-        const firstCctv = this.cctvData[0];
-        console.log('🗺️ 첫 번째 CCTV 좌표 (백엔드에서 받아온 원본):', 
-          firstCctv.coverage_area.coordinates[0].map((coord, i) => 
-            `${i+1}: [경도${coord[0]}, 위도${coord[1]}]`
-          ).join(' | ')
-        );
-      }
-
-      // 로드 완료 콜백 호출
-      this.notifyLoadComplete(this.cctvData);
-
-      return this.cctvData;
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
-      console.error('❌ CCTV 커버리지 로드 실패:', errorMessage);
-      
-      // 오류 콜백 호출
-      this.notifyError(errorMessage);
-      
-      throw error;
     }
+
+    // 모든 재시도 실패 - 백그라운드에서 주기적 재시도 시작
+    const errorMessage = lastError?.message || '알 수 없는 오류';
+    console.error('❌ CCTV 커버리지 로드 최종 실패:', errorMessage);
+    console.log('🔄 30초 후 백그라운드 재시도 시작...');
+    
+    // 주기적 재시도 시작 (30초마다)
+    this.startPeriodicRetry();
+    
+    // 에러 콜백은 호출하지 않음 (네트워크 에러 팝업 방지)
+    // this.notifyError(errorMessage); // 주석 처리
+    
+    throw lastError;
   }
 
   /**
@@ -315,9 +342,44 @@ export class CCTVCoverageService {
   }
 
   /**
+   * 주기적 재시도 시작
+   */
+  private startPeriodicRetry(): void {
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+    }
+
+    this.retryTimer = setTimeout(async () => {
+      if (!this.isLoaded) {
+        console.log('🔄 CCTV 백그라운드 재시도 중...');
+        try {
+          await this.loadCCTVCoverage();
+          console.log('✅ CCTV 백그라운드 재시도 성공!');
+        } catch (error) {
+          console.log('❌ CCTV 백그라운드 재시도 실패, 계속 재시도...');
+          // 실패해도 계속 재시도
+          this.startPeriodicRetry();
+        }
+      }
+    }, 10000); // 30초 후 재시도
+  }
+
+  /**
+   * 주기적 재시도 중지
+   */
+  private stopPeriodicRetry(): void {
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+      console.log('🛑 CCTV 주기적 재시도 중지');
+    }
+  }
+
+  /**
    * 정리 (앱 종료 시 호출)
    */
   public cleanup(): void {
+    this.stopPeriodicRetry();
     this.loadCallbacks.clear();
     this.errorCallbacks.clear();
   }

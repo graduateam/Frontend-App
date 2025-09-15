@@ -12,6 +12,7 @@ import {
   Platform,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 
@@ -63,6 +64,10 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
   const [cctvCoverages, setCctvCoverages] = useState<CCTV[]>([]);
   const [isInCctvArea, setIsInCctvArea] = useState(false);
   const [currentLocationUpdate, setCurrentLocationUpdate] = useState<LocationUpdateResult | null>(null);
+  
+  // 🆕 위치 추적 모드 상태 관리
+  const [isFollowingUser, setIsFollowingUser] = useState(true);
+  const [isMapManuallyMoved, setIsMapManuallyMoved] = useState(false);
   
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<any>(null);
@@ -180,17 +185,43 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
         // CCTV 커버리지 확인
         checkCCTVCoverage(newLocationData);
         
-        // 처음 위치를 받을 때만 지도 중심 이동
+        // 🆕 항상 사용자 위치를 중심으로 지도 이동 (위치 추적 모드)
+        const updateZoom = isFirstLocationUpdate ? 17 : currentZoom; // 첫 업데이트만 줌 레벨 17, 이후는 현재 줌 유지
+        const newCameraPosition = {
+          latitude: result.location.latitude,
+          longitude: result.location.longitude,
+          zoom: updateZoom,
+          tilt: 0,
+          bearing: result.location.heading || 0, // 사용자 방향에 따라 지도 회전
+        };
+        
+        // 🎬 위치 추적 모드일 때만 카메라 이동
+        if (isFollowingUser) {
+          if (mapRef.current && !isFirstLocationUpdate) {
+            // 위치 추적 중에는 부드러운 애니메이션 사용
+            try {
+              mapRef.current.animateCamera(newCameraPosition, {
+                duration: 1000, // 1초 애니메이션
+                easing: 'easeInOut', // 부드러운 easing
+              });
+            } catch (error) {
+              console.log('애니메이션 실패, 기본 이동 사용:', error);
+              setCamera(newCameraPosition);
+            }
+          } else {
+            // 첫 위치 업데이트는 즉시 이동
+            setCamera(newCameraPosition);
+          }
+        }
+        
+        // 일반 위치 업데이트 (위치 추적 모드가 아닐 때)
+        setLocation({
+          latitude: result.location.latitude,
+          longitude: result.location.longitude,
+        });
+        
+        // 첫 업데이트에서만 줌 레벨 설정
         if (isFirstLocationUpdate) {
-          const updateZoom = 17;
-          setCamera({
-            latitude: result.location.latitude,
-            longitude: result.location.longitude,
-            zoom: updateZoom,
-            tilt: 0,
-            bearing: 0,
-          });
-          // 줌 레벨도 동기화
           setCurrentZoom(updateZoom);
           setIsFirstLocationUpdate(false);
         }
@@ -205,7 +236,7 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
       console.log('🧹 지도 실시간 위치 서비스 연동 해제...');
       realTimeLocationService.removeLocationUpdateCallback(handleLocationUpdate);
     };
-  }, [isFirstLocationUpdate]);
+  }, [isFirstLocationUpdate, isFollowingUser, currentZoom]);
 
 
   // 속도를 km/h로 변환
@@ -223,14 +254,43 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
     return directions[index];
   };
 
+  // 🎯 위치 추적 모드 토글 함수
+  // 🎯 위치 추적 모드로 돌아가는 함수
+  const returnToLocationTracking = useCallback(() => {
+    if (locationData && mapRef.current) {
+      const recenterPosition = {
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        zoom: currentZoom,
+        tilt: 0,
+        bearing: locationData.heading || 0,
+      };
+      
+      try {
+        mapRef.current.animateCamera(recenterPosition, {
+          duration: 800,
+          easing: 'easeInOut',
+        });
+        console.log('🎯 위치 추적 모드로 복귀');
+        setIsFollowingUser(true);
+        setIsMapManuallyMoved(false);
+      } catch (error) {
+        console.log('위치 추적 모드 복귀 실패:', error);
+        setCamera(recenterPosition);
+        setIsFollowingUser(true);
+        setIsMapManuallyMoved(false);
+      }
+    }
+  }, [locationData, currentZoom]);
+
   // 🆕 객체 타입에 따른 아이콘 선택
   const getObjectIcon = (type: string, subtype?: string) => {
     switch (type) {
       case 'vehicle':
         if (subtype === 'bus') return require('@/assets/images/icon_car_3.png');
         return require('@/assets/images/icon_car.png');
-      case 'person':
-        return require('@/assets/images/icon_walking.png');
+      case 'person': // 차량 탐지 전용 - 보행자도 차량 아이콘 사용
+        return require('@/assets/images/icon_car.png');
       case 'bicycle':
         return require('@/assets/images/icon_car_2.png'); // 자전거 아이콘이 없어서 대체
       default:
@@ -280,6 +340,14 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
           } else if (args && args.camera && typeof args.camera.zoom === 'number') {
             console.log('🔍 현재 줌 레벨 (camera):', args.camera.zoom, '| 임계값:', ZOOM_THRESHOLD);
             setCurrentZoom(args.camera.zoom);
+          }
+          
+          // 🎯 사용자가 수동으로 지도를 움직였는지 감지
+          if (isFollowingUser && args && (args.latitude || args.longitude || (args.camera && (args.camera.latitude || args.camera.longitude)))) {
+            // 위치 추적 중인데 카메라가 변경되면 사용자가 수동으로 움직인 것으로 판단
+            console.log('🔄 사용자 수동 지도 이동 감지 - 추적 모드 비활성화');
+            setIsFollowingUser(false);
+            setIsMapManuallyMoved(true);
           }
         }}
       >
@@ -378,10 +446,7 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
             <View style={styles.warningMarkerContainer}>
               <View style={styles.warningPulse} />
               <Image
-                source={collisionWarning.objectType === 'vehicle' 
-                  ? require('@/assets/images/icon_car_3.png')
-                  : require('@/assets/images/icon_walking.png')
-                }
+                source={require('@/assets/images/icon_car_3.png')} // 차량 탐지 전용 - 모든 객체를 차량으로 처리
                 style={styles.warningIcon}
                 resizeMode="contain"
               />
@@ -415,7 +480,18 @@ export default function NaverMap({ height = MAP_HEIGHT, collisionWarning, detect
         ))}
       </NaverMapView>
 
-
+      {/* 🎯 위치 추적 복귀 버튼 (지도를 수동으로 움직였을 때만 표시) */}
+      {isMapManuallyMoved && !isFollowingUser && (
+        <View style={styles.floatingButtonContainer}>
+          <TouchableOpacity
+            style={styles.returnToLocationButton}
+            onPress={returnToLocationTracking}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.returnButtonIcon}>📍</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -517,5 +593,33 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     top: -4,
     left: -4,
+  },
+
+  // 🎯 위치 추적 복귀 버튼 스타일
+  floatingButtonContainer: {
+    position: 'absolute',
+    right: 16,
+    bottom: 20,
+    alignItems: 'center',
+  },
+  returnToLocationButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#007AFF',
+    borderWidth: 2,
+    borderColor: '#005BB5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  returnButtonIcon: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
